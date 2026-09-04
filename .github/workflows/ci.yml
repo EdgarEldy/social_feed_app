@@ -1,0 +1,41 @@
+# Gates every push and pull request against develop/master and every
+# feature/** branch: installs Flutter, then runs flutter analyze followed
+# by flutter test. A red check here blocks merging per the branch workflow
+# in README.md.
+name: CI
+
+"on":
+  push:
+    branches:
+      - master
+      - develop
+      - 'feature/**'
+  pull_request:
+    branches:
+      - master
+      - develop
+      - 'feature/**'
+
+jobs:
+  analyze-and-test:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test

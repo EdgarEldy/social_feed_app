@@ -50,7 +50,10 @@ class AdaptiveGrid extends StatelessWidget {
       builder: (context, constraints) {
         final columnCount = columnCountForWidth(constraints.maxWidth);
         final totalSpacing = spacing * (columnCount - 1);
-        final itemWidth = (constraints.maxWidth - totalSpacing) / columnCount;
+        // A very large spacing relative to the available width can otherwise
+        // drive this negative, which throws a BoxConstraints assertion below.
+        final itemWidth = ((constraints.maxWidth - totalSpacing) / columnCount)
+            .clamp(0.0, double.infinity);
 
         return Wrap(
           spacing: spacing,

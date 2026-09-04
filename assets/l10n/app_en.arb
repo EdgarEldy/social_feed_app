@@ -1,0 +1,15 @@
+{
+  "@@locale": "en",
+  "appTitle": "SocialFeed",
+  "@appTitle": {
+    "description": "The application name, shown as the OS task/window title."
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Label for a generic retry action, used by ErrorView."
+  },
+  "offlineMessage": "You're offline. Showing cached data.",
+  "@offlineMessage": {
+    "description": "Shown in OfflineBanner while the device has no connectivity."
+  }
+}

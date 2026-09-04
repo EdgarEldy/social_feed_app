@@ -1,0 +1,6 @@
+{
+  "@@locale": "fr",
+  "appTitle": "SocialFeed",
+  "retry": "Réessayer",
+  "offlineMessage": "Vous êtes hors ligne. Affichage des données en cache."
+}

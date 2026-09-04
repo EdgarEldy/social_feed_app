@@ -135,5 +135,34 @@ void main() {
       expect(fourthOffset.dy, greaterThan(firstRowOffset.dy));
       expect(fourthOffset.dx, firstRowOffset.dx);
     });
+
+    testWidgets('does not throw when spacing exceeds the available width', (
+      tester,
+    ) async {
+      useWideSurface(tester);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: AppDimens.breakpointMobile,
+              child: AdaptiveGrid(
+                spacing: 1000,
+                children: const [
+                  SizedBox(height: 10, child: Text('a')),
+                  SizedBox(height: 10, child: Text('b')),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Before the clamp fix, a spacing this much larger than the available
+      // width drove the computed item width negative, which threw a
+      // BoxConstraints assertion instead of laying out at zero width.
+      expect(tester.takeException(), isNull);
+    });
   });
 }

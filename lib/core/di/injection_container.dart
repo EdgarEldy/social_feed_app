@@ -19,14 +19,23 @@ final GetIt getIt = GetIt.instance;
 /// cross-cutting infrastructure (`Dio`, `GoRouter`) that everything else
 /// will be built on.
 ///
+/// [dioFactory] defaults to [DioClient.create], which requires
+/// `dotenv.load()` to have already run. Tests that do not want to load a
+/// real `.env` file can pass a lighter factory (e.g. `Dio.new`) while still
+/// exercising the same registration wiring as production.
+///
 /// Must be called once, before `runApp`, so every `getIt<T>()` call made
 /// while building the widget tree resolves successfully.
-void configureDependencies() {
+void configureDependencies({Dio Function() dioFactory = DioClient.create}) {
   // registerLazySingleton defers construction until the first getIt<Dio>()
   // call, and reuses that same instance for every call after, so the app
   // never accidentally ends up with two Dio clients holding two different
-  // sets of interceptors.
-  getIt.registerLazySingleton<Dio>(DioClient.create);
+  // sets of interceptors. The dispose callback lets getIt.reset() (used in
+  // tests) actually close the underlying HTTP client instead of leaking it.
+  getIt.registerLazySingleton<Dio>(dioFactory, dispose: (dio) => dio.close());
 
-  getIt.registerLazySingleton<GoRouter>(buildAppRouter);
+  getIt.registerLazySingleton<GoRouter>(
+    buildAppRouter,
+    dispose: (router) => router.dispose(),
+  );
 }

@@ -20,13 +20,11 @@ void main() {
     await getIt.reset();
   });
 
-  testWidgets('renders the login placeholder route on startup', (
-    tester,
-  ) async {
+  testWidgets('renders the login page on startup', (tester) async {
     await tester.pumpWidget(App());
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(AppBar, 'Login'), findsOneWidget);
-    expect(find.text('Login'), findsWidgets);
+    expect(find.widgetWithText(AppBar, 'Log in'), findsOneWidget);
+    expect(find.text('Log in'), findsWidgets);
   });
 }

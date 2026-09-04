@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/app_dimens.dart';
+import '../l10n/app_localizations.dart';
 
 /// A centered error state: an icon, a message, and an optional retry action.
 ///
@@ -63,7 +64,7 @@ class ErrorView extends StatelessWidget {
               IconButton(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                tooltip: 'Retry',
+                tooltip: AppLocalizations.of(context)!.retry,
               ),
             ],
           ],

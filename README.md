@@ -648,17 +648,17 @@ Registration, login, logout, JWT/refresh token lifecycle, secure storage, auth g
 
 ### Tasks
 
-- [ ] Create `SecureTokenStorage` (`flutter_secure_storage`) for access/refresh tokens
-- [ ] Create `AuthInterceptor`: attaches `Authorization: Bearer <token>`, catches `401`, calls `/auth/refresh`, retries once, signs out on failure
-- [ ] Create `AuthRemoteDatasource` wrapping `dio` calls to `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`
-- [ ] Create `AuthRepositoryImpl` returning `Either<Failure, User>`
-- [ ] Create usecases: `SignUpUseCase`, `SignInUseCase`, `SignOutUseCase`
-- [ ] Build `LoginPage`/`RegisterPage` with `Form` + `GlobalKey<FormState>` + validation (email format, password length)
-- [ ] Create `AuthStore` (`@observable User? currentUser`, `@computed bool isAuthenticated`, `@action` methods for sign in/up/out) restoring session from stored tokens on app start; register it as a singleton in `get_it`
-- [ ] Wire the real `go_router` `redirect` to `getIt<AuthStore>().isAuthenticated`
-- [ ] Surface API errors (invalid credentials, email already used) as a `SnackBar`
-- [ ] Unit test: `SignInUseCase` returns `ServerFailure` on a mocked 401 response (`http_mock_adapter`); interceptor retries once after a successful refresh
-- [ ] Widget test: `LoginPage` shows a validation error on empty submit; successful login navigates to the feed
+- [x] Create `SecureTokenStorage` (`flutter_secure_storage`) for access/refresh tokens
+- [x] Create `AuthInterceptor`: attaches `Authorization: Bearer <token>`, catches `401`, calls `/auth/refresh`, retries once, signs out on failure
+- [x] Create `AuthRemoteDatasource` wrapping `dio` calls to `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`
+- [x] Create `AuthRepositoryImpl` returning `Either<Failure, User>`
+- [x] Create usecases: `SignUpUseCase`, `SignInUseCase`, `SignOutUseCase`
+- [x] Build `LoginPage`/`RegisterPage` with `Form` + `GlobalKey<FormState>` + validation (email format, password length)
+- [x] Create `AuthStore` (`@observable User? currentUser`, `@computed bool isAuthenticated`, `@action` methods for sign in/up/out) restoring session from stored tokens on app start; register it as a singleton in `get_it`
+- [x] Wire the real `go_router` `redirect` to `getIt<AuthStore>().isAuthenticated`
+- [x] Surface API errors (invalid credentials, email already used) as a `SnackBar`
+- [x] Unit test: `SignInUseCase` returns `ServerFailure` on a mocked 401 response (`http_mock_adapter`); interceptor retries once after a successful refresh
+- [x] Widget test: `LoginPage` shows a validation error on empty submit; successful login navigates to the feed
 
 ---
 

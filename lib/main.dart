@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'app/app.dart';
 import 'core/di/injection_container.dart';
+import 'features/auth/presentation/stores/auth_store.dart';
 
 Future<void> main() async {
   // Widget binding must be ready before any plugin call (dotenv.load reads
@@ -17,6 +18,12 @@ Future<void> main() async {
     // branches add) once, before the widget tree is built, so every
     // getIt<T>() call made while rendering resolves successfully.
     configureDependencies();
+
+    // Reads the stored tokens and, if present, provisionally restores the
+    // authenticated state (see AuthStore's class doc for exactly what that
+    // means) before the widget tree, and with it go_router's first redirect
+    // decision, is built.
+    await getIt<AuthStore>().restoreSession();
 
     runApp(App());
   } catch (error) {

@@ -1,19 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/auth/presentation/stores/auth_store.dart';
+
 /// Builds the app's [GoRouter] configuration.
 ///
-/// Only the route skeleton exists on this branch: every destination renders
-/// a minimal placeholder page. Real pages are filled in feature by feature
-/// in later branches (`feature/auth`, `feature/posts`, `feature/users`).
-GoRouter buildAppRouter() {
+/// [authStore] drives the auth guard below: every redirect decision reads
+/// its `isAuthenticated` value. It is taken as an explicit parameter,
+/// rather than resolved with `getIt<AuthStore>()` inside this function, so
+/// a widget test can build a router against a fake/mock store without
+/// touching `get_it` at all.
+///
+/// [refreshListenable], when provided, is handed straight to `GoRouter`; see
+/// `auth_refresh_listenable.dart` for why one is needed at all. It is
+/// optional here purely so a test can omit it when it only cares about the
+/// redirect logic itself and not about re-evaluating it on sign in/out.
+///
+/// Real pages are filled in feature by feature; `feature/auth` fills in
+/// `LoginPage`/`RegisterPage`, later branches fill in the rest. Everything
+/// else here remains the placeholder route skeleton from
+/// `feature/design-system`.
+GoRouter buildAppRouter({
+  required AuthStore authStore,
+  Listenable? refreshListenable,
+}) {
   return GoRouter(
     initialLocation: '/login',
-    redirect: _authGuard,
+    redirect: (context, state) => _authGuard(authStore, state),
+    refreshListenable: refreshListenable,
     routes: [
       GoRoute(
         path: '/login',
-        builder: (context, state) => const _PlaceholderPage(routeName: 'Login'),
+        builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegisterPage(),
       ),
       GoRoute(
         path: '/posts/:id',
@@ -58,14 +82,31 @@ GoRouter buildAppRouter() {
   );
 }
 
-/// Auth guard placeholder.
+/// Redirects between the public auth routes and the rest of the app based
+/// on [authStore]'s `isAuthenticated`.
 ///
-/// `feature/auth` introduces `AuthStore.isAuthenticated`, resolved via
-/// `get_it`, and this callback will redirect unauthenticated users to
-/// `/login`. `AuthStore` does not exist yet on this branch, and it would be
-/// wrong to fake one just to fill this in, so the guard is a deliberate
-/// no-op: it always allows the navigation that was already requested.
-String? _authGuard(BuildContext context, GoRouterState state) {
+/// Only `/login` and `/register` are public; every other route in this app
+/// requires a bearer token server-side per the API Contract, `/posts/:id`
+/// included, so an unauthenticated user hitting any of them is bounced to
+/// `/login`. An already-authenticated user landing on `/login` or
+/// `/register` (a cold start with a restored session, following the link
+/// between the two pages while already signed in, or navigating `back` to
+/// either) is bounced forward to `/feed` instead, since there is no reason
+/// to show an auth form to someone already signed in.
+///
+/// Returning `null` in every other case means "proceed with the navigation
+/// that was already requested".
+String? _authGuard(AuthStore authStore, GoRouterState state) {
+  final isAuthenticated = authStore.isAuthenticated;
+  final isPublicAuthRoute =
+      state.matchedLocation == '/login' || state.matchedLocation == '/register';
+
+  if (!isAuthenticated && !isPublicAuthRoute) {
+    return '/login';
+  }
+  if (isAuthenticated && isPublicAuthRoute) {
+    return '/feed';
+  }
   return null;
 }
 

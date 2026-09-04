@@ -110,6 +110,13 @@ abstract class LocalDatasourceBase<T> {
       return const Right(null);
     } on DatabaseException catch (e) {
       return Left(CacheFailure('Failed to write to $tableName: $e'));
+    } on Exception catch (e) {
+      // `appDatabase.database` can throw more than `DatabaseException`, for
+      // example a platform error while opening the file for the first time,
+      // so this broader catch is what actually keeps that exception from
+      // escaping the data layer as the project's Either<Failure, T>
+      // contract requires.
+      return Left(CacheFailure('Failed to write to $tableName: $e'));
     }
   }
 
@@ -120,6 +127,8 @@ abstract class LocalDatasourceBase<T> {
       final rows = await db.query(tableName);
       return Right(rows.map(fromRow).toList());
     } on DatabaseException catch (e) {
+      return Left(CacheFailure('Failed to read $tableName: $e'));
+    } on Exception catch (e) {
       return Left(CacheFailure('Failed to read $tableName: $e'));
     }
   }
@@ -141,6 +150,8 @@ abstract class LocalDatasourceBase<T> {
       return Right(fromRow(rows.first));
     } on DatabaseException catch (e) {
       return Left(CacheFailure('Failed to read $tableName: $e'));
+    } on Exception catch (e) {
+      return Left(CacheFailure('Failed to read $tableName: $e'));
     }
   }
 
@@ -151,6 +162,8 @@ abstract class LocalDatasourceBase<T> {
       await db.delete(tableName, where: 'id = ?', whereArgs: [id]);
       return const Right(null);
     } on DatabaseException catch (e) {
+      return Left(CacheFailure('Failed to delete from $tableName: $e'));
+    } on Exception catch (e) {
       return Left(CacheFailure('Failed to delete from $tableName: $e'));
     }
   }

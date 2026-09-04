@@ -6,6 +6,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:social_feed_app/core/database/app_database.dart';
 import 'package:social_feed_app/core/database/local_datasource.dart';
+import 'package:social_feed_app/core/errors/failure.dart';
 import 'package:social_feed_app/features/posts/data/models/post_local_mapper.dart';
 import 'package:social_feed_app/features/posts/data/models/post_model.dart';
 
@@ -20,6 +21,19 @@ class _FakePathProviderPlatform extends PathProviderPlatform {
 
   @override
   Future<String?> getApplicationDocumentsPath() async => directoryPath;
+}
+
+/// Stand-in that throws a plain [Exception], not a `sqflite`
+/// [DatabaseException], while resolving the documents directory. Used to
+/// exercise the broader `on Exception catch` clause each
+/// [LocalDatasourceBase] method falls back to, which is what actually keeps
+/// a non-`DatabaseException` failure (e.g. a platform error opening the
+/// database file for the first time) from escaping the data layer.
+class _ThrowingPathProviderPlatform extends PathProviderPlatform {
+  @override
+  Future<String?> getApplicationDocumentsPath() async {
+    throw Exception('disk unavailable');
+  }
 }
 
 /// Minimal concrete [LocalDatasourceBase] built only for this test, the
@@ -182,6 +196,55 @@ void main() {
       expect(roundTripped!.authorPhotoUrl, isNull);
       expect(roundTripped.imageUrl, isNull);
       expect(roundTripped.updatedAt, isNull);
+    });
+  });
+
+  group('LocalDatasourceBase generic exception handling', () {
+    // These four mirror upsert/getAll/getById/deleteById one for one: each
+    // method has its own try/catch, so each is exercised separately rather
+    // than assuming the fix in one method covers the others.
+    test('upsert maps a non-DatabaseException thrown while opening the database to CacheFailure', () async {
+      PathProviderPlatform.instance = _ThrowingPathProviderPlatform();
+      final brokenDatabase = AppDatabase();
+      final datasource = _TestPostLocalDatasource(brokenDatabase);
+
+      final result = await datasource.upsert(samplePost);
+
+      expect(result.isLeft(), isTrue);
+      expect(result.match((failure) => failure, (_) => null), isA<CacheFailure>());
+    });
+
+    test('getAll maps a non-DatabaseException thrown while opening the database to CacheFailure', () async {
+      PathProviderPlatform.instance = _ThrowingPathProviderPlatform();
+      final brokenDatabase = AppDatabase();
+      final datasource = _TestPostLocalDatasource(brokenDatabase);
+
+      final result = await datasource.getAll();
+
+      expect(result.isLeft(), isTrue);
+      expect(result.match((failure) => failure, (_) => null), isA<CacheFailure>());
+    });
+
+    test('getById maps a non-DatabaseException thrown while opening the database to CacheFailure', () async {
+      PathProviderPlatform.instance = _ThrowingPathProviderPlatform();
+      final brokenDatabase = AppDatabase();
+      final datasource = _TestPostLocalDatasource(brokenDatabase);
+
+      final result = await datasource.getById(samplePost.id);
+
+      expect(result.isLeft(), isTrue);
+      expect(result.match((failure) => failure, (_) => null), isA<CacheFailure>());
+    });
+
+    test('deleteById maps a non-DatabaseException thrown while opening the database to CacheFailure', () async {
+      PathProviderPlatform.instance = _ThrowingPathProviderPlatform();
+      final brokenDatabase = AppDatabase();
+      final datasource = _TestPostLocalDatasource(brokenDatabase);
+
+      final result = await datasource.deleteById(samplePost.id);
+
+      expect(result.isLeft(), isTrue);
+      expect(result.match((failure) => failure, (_) => null), isA<CacheFailure>());
     });
   });
 }

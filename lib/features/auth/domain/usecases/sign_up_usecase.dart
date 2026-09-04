@@ -4,6 +4,7 @@ import '../../../../core/errors/failure.dart';
 import '../../../../core/storage/secure_token_storage.dart';
 import '../entities/user.dart';
 import '../repositories/auth_repository.dart';
+import 'session_persistence.dart';
 
 /// Registers a new account and turns the stateless `AuthRepository` result
 /// into the persisted session `AuthStore` (task 7) actually needs.
@@ -12,7 +13,9 @@ import '../repositories/auth_repository.dart';
 /// back an `AuthSession`; it never touches `SecureTokenStorage` itself. This
 /// usecase is the one place that bridges the two: on success it persists the
 /// returned `accessToken`/`refreshToken` pair and then returns just the
-/// `User`, so `AuthStore` never has to see a raw token.
+/// `User`, so `AuthStore` never has to see a raw token. The actual
+/// persist-then-unwrap step is shared with `SignInUseCase` via
+/// `persistSessionAndReturnUser`.
 class SignUpUseCase {
   // A `required this._authRepository` named parameter is still callable as
   // `SignUpUseCase(authRepository: ...)` from outside this file; Dart
@@ -42,13 +45,7 @@ class SignUpUseCase {
 
     return result.match(
       (failure) async => Left(failure),
-      (session) async {
-        await _tokenStorage.saveTokens(
-          accessToken: session.accessToken,
-          refreshToken: session.refreshToken,
-        );
-        return Right(session.user);
-      },
+      (session) => persistSessionAndReturnUser(session, _tokenStorage),
     );
   }
 }

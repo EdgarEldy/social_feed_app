@@ -109,11 +109,13 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
       ));
     } on DioException catch (e) {
       return Left(mapDioExceptionToFailure(e));
-    } on Exception catch (e) {
+    } catch (e) {
       // A response that comes back 2xx but does not actually match the
-      // documented shape (missing key, wrong type) is not a DioException;
-      // this keeps that kind of malformed-response bug from escaping
-      // data/ as an uncaught exception instead of a Failure.
+      // documented shape (missing key, wrong type) throws a TypeError from
+      // the casts above, not a DioException. TypeError is a subtype of
+      // Error, not Exception, so `on Exception catch` would silently miss
+      // it and let it escape uncaught; the bare catch here is deliberate so
+      // this kind of malformed-response bug becomes a Failure instead.
       return Left(ServerFailure('Unexpected response from server: $e'));
     }
   }
@@ -128,7 +130,9 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
       return Right(response.data!['accessToken'] as String);
     } on DioException catch (e) {
       return Left(mapDioExceptionToFailure(e));
-    } on Exception catch (e) {
+    } catch (e) {
+      // Same reasoning as _postForSession: a malformed 2xx body throws a
+      // TypeError, which `on Exception catch` would not catch.
       return Left(ServerFailure('Unexpected response from server: $e'));
     }
   }

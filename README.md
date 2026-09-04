@@ -608,10 +608,10 @@ Domain entities, API/JSON mapping models, repository interfaces. No UI yet.
 
 ### Tasks
 
-- [ ] Create `User`, `Post`, `Comment`, `Like` entities (`domain/entities`, pure Dart, no `dio`/`sqflite` import)
-- [ ] Create matching `*Model` classes with `fromJson`/`toJson` mapping to the [API Contract](#api-contract)
-- [ ] Define repository interfaces in `domain/repositories/` for `auth`, `users`, `posts`, `comments`, `likes`
-- [ ] Unit test: `PostModel.fromJson`/`toJson` round-trip against a sample API payload
+- [x] Create `User`, `Post`, `Comment`, `Like` entities (`domain/entities`, pure Dart, no `dio`/`sqflite` import)
+- [x] Create matching `*Model` classes with `fromJson`/`toJson` mapping to the [API Contract](#api-contract)
+- [x] Define repository interfaces in `domain/repositories/` for `auth`, `users`, `posts`, `comments`, `likes`
+- [x] Unit test: `PostModel.fromJson`/`toJson` round-trip against a sample API payload
 
 ---
 

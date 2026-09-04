@@ -207,6 +207,20 @@ abstract class _AuthStore with Store {
     _clearSession();
   }
 
+  /// Replaces [currentUser] with [user], typically after a successful
+  /// `EditProfilePage` submission (`PATCH /users/me` and/or
+  /// `POST /users/me/avatar`).
+  ///
+  /// `AuthStore` is the single place every other screen reads a signed-in
+  /// user's profile from (see the class doc), so without this, a successful
+  /// edit on `EditProfilePage` would only ever be visible on the page that
+  /// made it, since `UserStore`/`ProfilePage` reload from the network on
+  /// their own schedule rather than sharing state with `AuthStore`.
+  @action
+  void updateCurrentUser(User user) {
+    currentUser = user;
+  }
+
   @action
   void _applyAuthResult(Either<Failure, User> result) {
     result.match(

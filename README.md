@@ -675,15 +675,15 @@ User profile view/edit, avatar upload, accessibility pass on the profile screens
 
 ### Tasks
 
-- [ ] Create `UserRemoteDatasource` (`GET /users/:id`, `PATCH /users/me`, `POST /users/me/avatar`), `UserRepositoryImpl`
-- [ ] Create usecases: `GetUserUseCase`, `UpdateUserUseCase`, `UploadAvatarUseCase`
-- [ ] Create `UserStore` with an `@action loadUser(String id)` and an `ObservableFuture<User>` (or manual loading/error/data observables) exposed to the UI
-- [ ] Build `ProfilePage`: avatar, name, the user's posts, with loading/error/data states rendered inside an `Observer`
-- [ ] Build `AvatarPicker` using `image_picker`, upload via `dio` `FormData` multipart with progress tracking
-- [ ] Build `EditProfilePage` pre-filled from the current user
-- [ ] Verify the profile screens under a large `textScaleFactor`; fill any `Semantics` gaps beyond the design system's defaults
-- [ ] Unit test: `UpdateUserUseCase` calls the repository with the correct payload
-- [ ] Widget test: `ProfilePage` shows a loading state then the user's data
+- [x] Create `UserRemoteDatasource` (`GET /users/:id`, `PATCH /users/me`, `POST /users/me/avatar`), `UserRepositoryImpl`
+- [x] Create usecases: `GetUserUseCase`, `UpdateUserUseCase`, `UploadAvatarUseCase`
+- [x] Create `UserStore` with an `@action loadUser(String id)` and an `ObservableFuture<User>` (or manual loading/error/data observables) exposed to the UI
+- [x] Build `ProfilePage`: avatar, name, the user's posts, with loading/error/data states rendered inside an `Observer`
+- [x] Build `AvatarPicker` using `image_picker`, upload via `dio` `FormData` multipart with progress tracking
+- [x] Build `EditProfilePage` pre-filled from the current user
+- [x] Verify the profile screens under a large `textScaleFactor`; fill any `Semantics` gaps beyond the design system's defaults
+- [x] Unit test: `UpdateUserUseCase` calls the repository with the correct payload
+- [x] Widget test: `ProfilePage` shows a loading state then the user's data
 
 ---
 

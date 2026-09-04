@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/stores/auth_store.dart';
+import '../../features/users/presentation/pages/edit_profile_page.dart';
+import '../../features/users/presentation/pages/profile_page.dart';
 
 /// Builds the app's [GoRouter] configuration.
 ///
@@ -64,15 +66,25 @@ GoRouter buildAppRouter({
             routes: [
               GoRoute(
                 path: '/profile',
-                builder: (context, state) =>
-                    const _PlaceholderPage(routeName: 'Profile'),
-              ),
-              GoRoute(
-                path: '/profile/:id',
-                builder: (context, state) {
-                  final id = state.pathParameters['id']!;
-                  return _PlaceholderPage(routeName: 'Profile', detail: id);
-                },
+                builder: (context, state) => const OwnProfilePage(),
+                routes: [
+                  // Declared before the ':id' route below so it wins the
+                  // match for the literal path '/profile/edit': go_router
+                  // tries sibling routes in declaration order, and a
+                  // static segment declared first is matched before a
+                  // dynamic ':id' segment ever gets a chance to swallow it.
+                  GoRoute(
+                    path: 'edit',
+                    builder: (context, state) => const EditProfilePage(),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) {
+                      final id = state.pathParameters['id']!;
+                      return ProfilePage(userId: id);
+                    },
+                  ),
+                ],
               ),
             ],
           ),

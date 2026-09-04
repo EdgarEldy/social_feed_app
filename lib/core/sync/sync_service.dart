@@ -116,8 +116,19 @@ class SyncService {
   Future<void> _drainQueue() async {
     final pending = await _readPendingWrites();
     for (final write in pending) {
-      final result = await _replayer(write);
-      final succeeded = result.isRight();
+      // The injected replayer is expected to return `Either<Failure, void>`,
+      // but it is feature-supplied code (see the typedef doc above) and may
+      // throw instead of returning a `Left` if something unexpected goes
+      // wrong deep inside it. Treating that thrown exception the same as a
+      // failed replay, rather than letting it escape the loop, keeps one bad
+      // write from aborting the rest of the batch.
+      bool succeeded;
+      try {
+        final result = await _replayer(write);
+        succeeded = result.isRight();
+      } catch (_) {
+        succeeded = false;
+      }
       if (succeeded) {
         await _remove(write);
       }

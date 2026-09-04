@@ -236,6 +236,60 @@ void main() {
     });
   });
 
+  group('SyncService replayer throws', () {
+    test('leaves a write queued when the replayer throws instead of returning Left', () async {
+      await _insertPendingWrite(appDatabase, writeAt(1));
+
+      final syncService = SyncService(
+        appDatabase: appDatabase,
+        connectivityStore: connectivityStore,
+        replayer: (write) async {
+          throw StateError('boom');
+        },
+      );
+      syncService.start();
+
+      connectivityStore.isOnline = false;
+      connectivityStore.isOnline = true;
+      await syncService.syncNow();
+
+      final remaining = await _readPendingWrites(appDatabase);
+      expect(remaining, hasLength(1));
+
+      syncService.dispose();
+    });
+
+    test('continues draining the rest of the batch after one replay throws', () async {
+      await _insertPendingWrite(appDatabase, writeAt(1, entityType: 'throws'));
+      await _insertPendingWrite(appDatabase, writeAt(5, entityType: 'succeeds'));
+
+      final replayedEntityTypes = <String>[];
+      final syncService = SyncService(
+        appDatabase: appDatabase,
+        connectivityStore: connectivityStore,
+        replayer: (write) async {
+          replayedEntityTypes.add(write.entityType);
+          if (write.entityType == 'throws') {
+            throw StateError('boom');
+          }
+          return const Right(null);
+        },
+      );
+      syncService.start();
+
+      connectivityStore.isOnline = false;
+      connectivityStore.isOnline = true;
+      await syncService.syncNow();
+
+      expect(replayedEntityTypes, ['throws', 'succeeds']);
+      final remaining = await _readPendingWrites(appDatabase);
+      expect(remaining, hasLength(1));
+      expect(remaining.single.entityType, 'throws');
+
+      syncService.dispose();
+    });
+  });
+
   group('SyncService.syncNow in-flight de-duplication', () {
     test('concurrent syncNow calls share a single drain rather than racing', () async {
       await _insertPendingWrite(appDatabase, writeAt(1));

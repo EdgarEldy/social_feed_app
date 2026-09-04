@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/di/injection_container.dart';
 import '../core/l10n/app_localizations.dart';
+import '../core/widgets/connectivity_aware_offline_banner.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_mode_controller.dart';
 
@@ -82,6 +83,14 @@ class _AppState extends State<App> {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: getIt<GoRouter>(),
+      builder: (context, routedChild) {
+        return Column(
+          children: [
+            const ConnectivityAwareOfflineBanner(),
+            Expanded(child: routedChild ?? const SizedBox.shrink()),
+          ],
+        );
+      },
     );
   }
 }

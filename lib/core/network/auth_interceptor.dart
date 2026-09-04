@@ -7,17 +7,18 @@ import 'api_endpoints.dart';
 /// `401` response by attempting a silent refresh before retrying the
 /// original request once.
 ///
-/// When the refresh attempt cannot even be made (no stored refresh token) or
-/// is made and itself fails, this interceptor tags the propagating
-/// [DioException] with `extra['sessionExpired'] = true` before handing it
-/// back to `dio`, but only if the original request was actually
+/// When the refresh attempt cannot even be made (no stored refresh token),
+/// is made and itself fails, or the retried request comes back `401` again
+/// even after an apparently successful refresh, this interceptor tags the
+/// propagating [DioException] with `extra['sessionExpired'] = true` before
+/// handing it back to `dio`, but only if the original request was actually
 /// authenticated in the first place (it carried an `Authorization` header).
 /// That tag is how `dio_exception_mapper.dart` tells a genuinely expired
 /// session apart from a first-attempt `401`, such as a wrong password on
 /// `POST /auth/login`. That case can reach this same "no refresh token"
 /// branch (a fresh install has neither an access nor a refresh token
 /// stored), but must not be tagged as `sessionExpired` since there was
-/// never a session to expire. The same two spots also invoke
+/// never a session to expire. The same three spots also invoke
 /// [_onSessionExpired], if one was supplied, so the app's `AuthStore` can
 /// clear its in-memory session the moment a forced sign-out happens.
 ///
@@ -108,9 +109,8 @@ class AuthInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final isUnauthorized = err.response?.statusCode == 401;
-    final alreadyRetried = err.requestOptions.extra[_retriedKey] == true;
 
-    if (!isUnauthorized || alreadyRetried) {
+    if (!isUnauthorized) {
       handler.next(err);
       return;
     }
@@ -128,6 +128,25 @@ class AuthInterceptor extends Interceptor {
     final wasAuthenticatedRequest = err.requestOptions.headers.containsKey(
       'Authorization',
     );
+
+    final alreadyRetried = err.requestOptions.extra[_retriedKey] == true;
+    if (alreadyRetried) {
+      // This is the retried request itself coming back 401 a second time:
+      // the refresh appeared to succeed (a new access token was stored and
+      // attached), but the session is genuinely dead regardless, whether
+      // the new token is somehow still rejected or expired again
+      // immediately. That still needs to be tagged and signed out exactly
+      // like a failed refresh below; the only difference is that no further
+      // refresh or retry is attempted here, since _retriedKey already
+      // guarantees at most one retry.
+      await _tokenStorage.clearTokens();
+      if (wasAuthenticatedRequest) {
+        err.requestOptions.extra[_sessionExpiredKey] = true;
+        _onSessionExpired?.call();
+      }
+      handler.next(err);
+      return;
+    }
 
     final refreshToken = await _tokenStorage.getRefreshToken();
     if (refreshToken == null) {
@@ -203,7 +222,14 @@ class AuthInterceptor extends Interceptor {
     } on DioException {
       await _tokenStorage.clearTokens();
       return false;
-    } on Exception {
+    } catch (_) {
+      // A refresh response that comes back 2xx but does not actually match
+      // the documented `{ accessToken }` shape (missing key, wrong type)
+      // throws a TypeError from the cast above, not a DioException. TypeError
+      // is a subtype of Error, not Exception, so `on Exception catch` would
+      // silently miss it and let it escape uncaught. A malformed refresh
+      // body is treated the same as a failed refresh: clear the tokens and
+      // report failure.
       await _tokenStorage.clearTokens();
       return false;
     }

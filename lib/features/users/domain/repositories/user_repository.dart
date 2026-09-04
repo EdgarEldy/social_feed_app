@@ -26,5 +26,15 @@ abstract class UserRepository {
   /// README's `createPost(Post post, {File? image})` example: `domain/`
   /// otherwise avoids platform-specific imports, but `dart:io`'s `File` is
   /// the one precedent already set for representing a picked image.
-  Future<Either<Failure, String>> uploadAvatar(File image);
+  ///
+  /// [onSendProgress] is forwarded down to `UserRemoteDatasource.uploadAvatar`
+  /// and, from there, straight to `dio`'s own `onSendProgress` parameter, so
+  /// a caller such as `AvatarPicker` can drive a progress indicator while
+  /// the multipart body streams. Its signature is written out by hand rather
+  /// than importing `dio`'s `ProgressCallback` typedef, since `domain/`
+  /// never imports `dio`.
+  Future<Either<Failure, String>> uploadAvatar(
+    File image, {
+    void Function(int sent, int total)? onSendProgress,
+  });
 }

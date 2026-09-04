@@ -13,16 +13,30 @@ class DioClient {
 
   /// Creates a configured [Dio] instance.
   ///
-  /// `API_BASE_URL` is read from the loaded `.env` file rather than
-  /// hardcoded, so switching backends (local, staging, production) only
-  /// requires changing `.env`, never a code change.
+  /// `API_BASE_URL` and `API_TIMEOUT_SECONDS` are read from the loaded
+  /// `.env` file rather than hardcoded, so switching backends (local,
+  /// staging, production) or tuning timeouts only requires changing `.env`,
+  /// never a code change.
   static Dio create() {
+    // A missing or misspelled key must fail loudly at startup rather than
+    // silently pointing Dio at an empty base URL, which would otherwise
+    // surface as a confusing connection error much later.
+    final baseUrl =
+        dotenv.env['API_BASE_URL'] ??
+        (throw StateError(
+          'API_BASE_URL is not set. Copy .env.example to .env and fill it in.',
+        ));
+
+    final timeout = Duration(
+      seconds: int.parse(dotenv.env['API_TIMEOUT_SECONDS'] ?? '10'),
+    );
+
     final dio = Dio(
       BaseOptions(
-        baseUrl: dotenv.env['API_BASE_URL'] ?? '',
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-        sendTimeout: const Duration(seconds: 10),
+        baseUrl: baseUrl,
+        connectTimeout: timeout,
+        receiveTimeout: timeout,
+        sendTimeout: timeout,
       ),
     );
 

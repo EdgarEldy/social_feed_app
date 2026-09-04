@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
+import '../storage/secure_token_storage.dart';
+import 'auth_interceptor.dart';
+
 /// Builds the single [Dio] instance used across the app.
 ///
 /// Every remote datasource depends on this instance (resolved through
@@ -17,7 +20,11 @@ class DioClient {
   /// `.env` file rather than hardcoded, so switching backends (local,
   /// staging, production) or tuning timeouts only requires changing `.env`,
   /// never a code change.
-  static Dio create() {
+  ///
+  /// [tokenStorage] is handed to the [AuthInterceptor] attached below; it is
+  /// a required parameter rather than resolved internally via `getIt` so
+  /// this factory stays a plain, easily testable function.
+  static Dio create({required SecureTokenStorage tokenStorage}) {
     // A missing or misspelled key must fail loudly at startup rather than
     // silently pointing Dio at an empty base URL, which would otherwise
     // surface as a confusing connection error much later.
@@ -54,6 +61,11 @@ class DioClient {
         ),
       );
     }
+
+    // Added after the logger above so every request/response the logger
+    // prints already reflects what AuthInterceptor did to it (the attached
+    // bearer header, or a transparent 401 retry).
+    dio.interceptors.add(AuthInterceptor(dio, tokenStorage, baseUrl: baseUrl));
 
     return dio;
   }

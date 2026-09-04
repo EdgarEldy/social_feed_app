@@ -11,6 +11,12 @@ import '../../features/auth/domain/usecases/sign_in_usecase.dart';
 import '../../features/auth/domain/usecases/sign_out_usecase.dart';
 import '../../features/auth/domain/usecases/sign_up_usecase.dart';
 import '../../features/auth/presentation/stores/auth_store.dart';
+import '../../features/users/data/datasources/user_remote_datasource.dart';
+import '../../features/users/data/repositories/user_repository_impl.dart';
+import '../../features/users/domain/repositories/user_repository.dart';
+import '../../features/users/domain/usecases/get_user_usecase.dart';
+import '../../features/users/domain/usecases/update_user_usecase.dart';
+import '../../features/users/domain/usecases/upload_avatar_usecase.dart';
 import '../database/app_database.dart';
 import '../network/dio_client.dart';
 import '../network_info/connectivity_store.dart';
@@ -81,6 +87,31 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
   );
   getIt.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(getIt<AuthRemoteDatasource>()),
+  );
+
+  // feature/users's remote datasource and repository, registered right
+  // after auth's for the same reason: the datasource (needs Dio) first,
+  // then the repository (needs the datasource). No local datasource here,
+  // per UserRepositoryImpl's class doc: a profile read/write has no
+  // meaningful cached fallback in this branch's scope.
+  getIt.registerLazySingleton<UserRemoteDatasource>(
+    () => UserRemoteDatasourceImpl(getIt<Dio>()),
+  );
+  getIt.registerLazySingleton<UserRepository>(
+    () => UserRepositoryImpl(getIt<UserRemoteDatasource>()),
+  );
+
+  // feature/users's three usecases, registered right after UserRepository:
+  // each is a thin pass-through to a single repository method, so unlike
+  // the auth usecases above they need no other dependency.
+  getIt.registerLazySingleton<GetUserUseCase>(
+    () => GetUserUseCase(userRepository: getIt<UserRepository>()),
+  );
+  getIt.registerLazySingleton<UpdateUserUseCase>(
+    () => UpdateUserUseCase(userRepository: getIt<UserRepository>()),
+  );
+  getIt.registerLazySingleton<UploadAvatarUseCase>(
+    () => UploadAvatarUseCase(userRepository: getIt<UserRepository>()),
   );
 
   // The three auth usecases each bridge the stateless AuthRepository and

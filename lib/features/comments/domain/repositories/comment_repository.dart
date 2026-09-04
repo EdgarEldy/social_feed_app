@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 
 import '../../../../core/errors/failure.dart';
+import '../../../../core/pagination/paginated_result.dart';
 import '../entities/comment.dart';
 
 /// Contract for the comment endpoints in the API Contract:
@@ -13,12 +14,23 @@ abstract class CommentRepository {
   /// Calls `GET /posts/:postId/comments?cursor=&limit=`.
   ///
   /// Mirrors `PostRepository.getPosts`'s paginated shape: `{ items:
-  /// Comment[], nextCursor }`, returned as a record for the same reason.
-  Future<Either<Failure, ({List<Comment> items, String? nextCursor})>>
-  getComments(String postId, {String? cursor, int? limit});
+  /// Comment[], nextCursor }`, modeled by the same shared `PaginatedResult`
+  /// type.
+  Future<Either<Failure, PaginatedResult<Comment>>> getComments(
+    String postId, {
+    String? cursor,
+    int? limit,
+  });
 
   /// Calls `POST /posts/:postId/comments` with `{ content }`.
-  Future<Either<Failure, Comment>> addComment(String postId, String content);
+  ///
+  /// [postId] and [content] are both named to avoid an accidental swap
+  /// between two adjacent `String` parameters, the same reasoning behind
+  /// `AuthRepository.register`/`login` using named parameters.
+  Future<Either<Failure, Comment>> addComment({
+    required String postId,
+    required String content,
+  });
 
   /// Calls `DELETE /comments/:id`.
   Future<Either<Failure, void>> deleteComment(String id);

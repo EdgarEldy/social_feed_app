@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/app_dimens.dart';
+import '../l10n/app_localizations.dart';
 
 /// A thin banner shown at the top of a screen while the device is offline.
 ///
@@ -42,7 +43,7 @@ class OfflineBanner extends StatelessWidget {
           const SizedBox(width: AppDimens.spacingSm),
           Flexible(
             child: Text(
-              "You're offline. Showing cached data.",
+              AppLocalizations.of(context)!.offlineMessage,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onErrorContainer,
               ),

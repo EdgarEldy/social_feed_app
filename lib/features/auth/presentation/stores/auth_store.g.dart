@@ -177,6 +177,18 @@ mixin _$AuthStore on _AuthStore, Store {
   }
 
   @override
+  void updateCurrentUser(User user) {
+    final _$actionInfo = _$_AuthStoreActionController.startAction(
+      name: '_AuthStore.updateCurrentUser',
+    );
+    try {
+      return super.updateCurrentUser(user);
+    } finally {
+      _$_AuthStoreActionController.endAction(_$actionInfo);
+    }
+  }
+
+  @override
   void _applyAuthResult(Either<Failure, User> result) {
     final _$actionInfo = _$_AuthStoreActionController.startAction(
       name: '_AuthStore._applyAuthResult',

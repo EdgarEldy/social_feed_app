@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:fpdart/fpdart.dart';
 
 import '../../../../core/errors/failure.dart';
+import '../../../../core/pagination/paginated_result.dart';
 import '../entities/post.dart';
 
 /// Contract for the post endpoints in the API Contract: `GET /posts`,
@@ -17,11 +18,10 @@ import '../entities/post.dart';
 abstract class PostRepository {
   /// Calls `GET /posts?cursor=&limit=`.
   ///
-  /// The response is `{ items: Post[], nextCursor }`; a record is used
-  /// instead of a named class to keep this shape local to the one call
-  /// site that needs it, `nextCursor` is `null` once there is no further
-  /// page to load.
-  Future<Either<Failure, ({List<Post> items, String? nextCursor})>> getPosts({
+  /// The response is `{ items: Post[], nextCursor }`, modeled by the shared
+  /// `PaginatedResult` type also used by `CommentRepository.getComments`;
+  /// `nextCursor` is `null` once there is no further page to load.
+  Future<Either<Failure, PaginatedResult<Post>>> getPosts({
     String? cursor,
     int? limit,
   });

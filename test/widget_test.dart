@@ -23,7 +23,7 @@ void main() {
   testWidgets('renders the login placeholder route on startup', (
     tester,
   ) async {
-    await tester.pumpWidget(const App());
+    await tester.pumpWidget(App());
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(AppBar, 'Login'), findsOneWidget);

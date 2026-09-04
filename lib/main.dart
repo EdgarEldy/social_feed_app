@@ -18,7 +18,7 @@ Future<void> main() async {
     // getIt<T>() call made while rendering resolves successfully.
     configureDependencies();
 
-    runApp(const App());
+    runApp(App());
   } catch (error) {
     // Neither dotenv.load nor configureDependencies has a UI to fail into,
     // so an uncaught exception here would kill the app before any widget

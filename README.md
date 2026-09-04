@@ -621,17 +621,17 @@ The local persistence layer and the offline-first strategy every remote-backed f
 
 ### Tasks
 
-- [ ] Design the `sqflite` schema: `posts_cache`, `comments_cache` tables mirroring the API shape, plus a `synced_at` column
-- [ ] Add a `pending_writes` table (`id`, `entity_type`, `payload_json`, `operation`, `created_at`) to queue mutations made while offline
-- [ ] Create `core/database/app_database.dart`: database opening, version, migrations
-- [ ] Create mapping helpers between the API JSON shape and the SQLite row shape
-- [ ] Add `connectivity_plus`, create a `ConnectivityStore` (`@observable bool isOnline`) registered in `get_it`, and wire the `OfflineBanner` built in `feature/design-system` to it via `Observer`
-- [ ] Define and document the offline-first read strategy: try remote first, fall back to local cache on `NetworkFailure`, always write-through successful remote reads to the cache
-- [ ] Define and document the offline-write strategy: a mutation made while offline is written to `pending_writes` and optimistically applied to the local cache; a `SyncService` reacts to `ConnectivityStore` going back online, replays queued writes in order, and removes each entry on success
-- [ ] Build a small reference implementation of the pattern (a generic `*_local_datasource.dart` base used by `posts` and `comments` later)
-- [ ] Unit test: `sqflite` insert/read round-trip using `sqflite_common_ffi`
-- [ ] Unit test: a repository combining a mocked remote and local datasource falls back to the cache on `NetworkFailure`
-- [ ] Unit test: `SyncService` replays a queued write once `ConnectivityStore.isOnline` flips to `true`, and leaves it queued on a repeated failure
+- [x] Design the `sqflite` schema: `posts_cache`, `comments_cache` tables mirroring the API shape, plus a `synced_at` column
+- [x] Add a `pending_writes` table (`id`, `entity_type`, `payload_json`, `operation`, `created_at`) to queue mutations made while offline
+- [x] Create `core/database/app_database.dart`: database opening, version, migrations
+- [x] Create mapping helpers between the API JSON shape and the SQLite row shape
+- [x] Add `connectivity_plus`, create a `ConnectivityStore` (`@observable bool isOnline`) registered in `get_it`, and wire the `OfflineBanner` built in `feature/design-system` to it via `Observer`
+- [x] Define and document the offline-first read strategy: try remote first, fall back to local cache on `NetworkFailure`, always write-through successful remote reads to the cache
+- [x] Define and document the offline-write strategy: a mutation made while offline is written to `pending_writes` and optimistically applied to the local cache; a `SyncService` reacts to `ConnectivityStore` going back online, replays queued writes in order, and removes each entry on success
+- [x] Build a small reference implementation of the pattern (a generic `*_local_datasource.dart` base used by `posts` and `comments` later)
+- [x] Unit test: `sqflite` insert/read round-trip using `sqflite_common_ffi`
+- [x] Unit test: a repository combining a mocked remote and local datasource falls back to the cache on `NetworkFailure`
+- [x] Unit test: `SyncService` replays a queued write once `ConnectivityStore.isOnline` flips to `true`, and leaves it queued on a repeated failure
 
 ---
 

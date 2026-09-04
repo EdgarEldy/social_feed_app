@@ -39,6 +39,11 @@ GoRouter buildAppRouter() {
           StatefulShellBranch(
             routes: [
               GoRoute(
+                path: '/profile',
+                builder: (context, state) =>
+                    const _PlaceholderPage(routeName: 'Profile'),
+              ),
+              GoRoute(
                 path: '/profile/:id',
                 builder: (context, state) {
                   final id = state.pathParameters['id']!;

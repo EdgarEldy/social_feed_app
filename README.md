@@ -573,15 +573,15 @@ Project structure, `dio` client configuration, environment config, `get_it` serv
 
 ### Tasks
 
-- [ ] `flutter create socialfeed_app`, configure `analysis_options.yaml` (`flutter_lints`)
-- [ ] Create `.env.example` with `API_BASE_URL`; add `flutter_dotenv`, declare `.env` as an asset in `pubspec.yaml`, and call `await dotenv.load()` before `runApp` so `dotenv.env['API_BASE_URL']` is available
-- [ ] Create `core/network/dio_client.dart`: base `Dio` instance, base URL, timeouts, `pretty_dio_logger` in debug mode
-- [ ] Create `core/network/api_endpoints.dart` matching the [API Contract](#api-contract)
-- [ ] Create `core/errors/failure.dart` (sealed `Failure` hierarchy)
-- [ ] Add `mobx`, `flutter_mobx`, `get_it`; create `core/di/injection_container.dart` and call `configureDependencies()` from `main.dart` before `runApp`
-- [ ] Add `go_router`, declare base routes (`/login`, `/feed`, `/posts/:id`, `/profile/:id`), a placeholder auth `redirect`, and a `StatefulShellRoute` tab shell (feed / profile)
-- [ ] Set up GitHub Actions `ci.yml` (`flutter analyze` + `flutter test`)
-- [ ] Widget test: app boots and the placeholder route renders
+- [x] `flutter create socialfeed_app`, configure `analysis_options.yaml` (`flutter_lints`)
+- [x] Create `.env.example` with `API_BASE_URL`; add `flutter_dotenv`, declare `.env` as an asset in `pubspec.yaml`, and call `await dotenv.load()` before `runApp` so `dotenv.env['API_BASE_URL']` is available
+- [x] Create `core/network/dio_client.dart`: base `Dio` instance, base URL, timeouts, `pretty_dio_logger` in debug mode
+- [x] Create `core/network/api_endpoints.dart` matching the [API Contract](#api-contract)
+- [x] Create `core/errors/failure.dart` (sealed `Failure` hierarchy)
+- [x] Add `mobx`, `flutter_mobx`, `get_it`; create `core/di/injection_container.dart` and call `configureDependencies()` from `main.dart` before `runApp`
+- [x] Add `go_router`, declare base routes (`/login`, `/feed`, `/posts/:id`, `/profile/:id`), a placeholder auth `redirect`, and a `StatefulShellRoute` tab shell (feed / profile)
+- [x] Set up GitHub Actions `ci.yml` (`flutter analyze` + `flutter test`)
+- [x] Widget test: app boots and the placeholder route renders
 
 ---
 
@@ -591,14 +591,14 @@ Theming, layout primitives, and the reusable components every later branch will 
 
 ### Tasks
 
-- [ ] Create `app_theme.dart` with `ColorScheme.fromSeed`, light and dark `ThemeData` (Material 3)
-- [ ] Toggle theme based on `MediaQuery.platformBrightnessOf`, with a manual override
-- [ ] Extract `app_dimens.dart` constants (spacing, radius, breakpoints) to avoid magic numbers
-- [ ] Build a responsive layout primitive using `LayoutBuilder` (e.g. an `AdaptiveGrid` that switches column count on tablet width), reused later by `PostCard`
-- [ ] Build shared components: `LoadingIndicator`, `ErrorView`, `OfflineBanner` (wired to real connectivity state in `feature/offline-and-sync`), `AppButton`, `AppCard`
-- [ ] Establish the `Semantics` labeling convention for icon-only buttons, applied to every shared component from the start
-- [ ] Scaffold `l10n/app_en.arb`, `l10n/app_fr.arb` and wire `flutter_localizations` (empty/base strings only; features extract their own strings as they are built)
-- [ ] Widget test: theme toggle switches `ColorScheme`; `AdaptiveGrid` renders one column under a mobile width and multiple above a tablet breakpoint
+- [x] Create `app_theme.dart` with `ColorScheme.fromSeed`, light and dark `ThemeData` (Material 3)
+- [x] Toggle theme based on `MediaQuery.platformBrightnessOf`, with a manual override
+- [x] Extract `app_dimens.dart` constants (spacing, radius, breakpoints) to avoid magic numbers
+- [x] Build a responsive layout primitive using `LayoutBuilder` (e.g. an `AdaptiveGrid` that switches column count on tablet width), reused later by `PostCard`
+- [x] Build shared components: `LoadingIndicator`, `ErrorView`, `OfflineBanner` (wired to real connectivity state in `feature/offline-and-sync`), `AppButton`, `AppCard`
+- [x] Establish the `Semantics` labeling convention for icon-only buttons, applied to every shared component from the start
+- [x] Scaffold `l10n/app_en.arb`, `l10n/app_fr.arb` and wire `flutter_localizations` (empty/base strings only; features extract their own strings as they are built)
+- [x] Widget test: theme toggle switches `ColorScheme`; `AdaptiveGrid` renders one column under a mobile width and multiple above a tablet breakpoint
 
 ---
 

@@ -15,11 +15,11 @@ import 'theme/theme_mode_controller.dart';
 ///
 /// Theming is a [StatefulWidget] concern here rather than a `MobX` one: the
 /// app owns a [ThemeModeController], listens to it, and rebuilds whenever
-/// the user picks a manual light/dark override. When the controller is left
-/// on [ThemeMode.system] (the default), the effective brightness is read
-/// explicitly via [MediaQuery.platformBrightnessOf] on every build, so the
-/// theme also updates live if the OS brightness changes while the app is
-/// running.
+/// the user picks a manual light/dark override. The controller's [ThemeMode]
+/// is passed straight through to [MaterialApp.router]'s `themeMode`, which
+/// already knows how to resolve [ThemeMode.system] against the platform
+/// brightness on its own, so there is no need to duplicate that resolution
+/// here.
 class App extends StatefulWidget {
   /// Creates the root widget.
   ///
@@ -27,10 +27,18 @@ class App extends StatefulWidget {
   /// wants to control or observe the theme mode from the outside; when
   /// omitted, the widget owns its own controller and disposes it.
   App({super.key, ThemeModeController? themeModeController})
-      : themeModeController = themeModeController ?? ThemeModeController();
+      : themeModeController = themeModeController ?? ThemeModeController(),
+        _ownsController = themeModeController == null;
 
   /// Tracks the user's manual theme override, defaulting to "follow system".
   final ThemeModeController themeModeController;
+
+  /// Whether this widget created [themeModeController] itself, and is
+  /// therefore responsible for disposing it.
+  ///
+  /// A controller passed in by a caller is presumed to still be owned by
+  /// that caller and must not be disposed here.
+  final bool _ownsController;
 
   @override
   State<App> createState() => _AppState();
@@ -44,8 +52,20 @@ class _AppState extends State<App> {
   }
 
   @override
+  void didUpdateWidget(covariant App oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.themeModeController != widget.themeModeController) {
+      oldWidget.themeModeController.removeListener(_onThemeModeChanged);
+      widget.themeModeController.addListener(_onThemeModeChanged);
+    }
+  }
+
+  @override
   void dispose() {
     widget.themeModeController.removeListener(_onThemeModeChanged);
+    if (widget._ownsController) {
+      widget.themeModeController.dispose();
+    }
     super.dispose();
   }
 
@@ -53,27 +73,12 @@ class _AppState extends State<App> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = widget.themeModeController;
-
-    // ThemeMode.system would normally let MaterialApp resolve the platform
-    // brightness internally. Reading it explicitly through MediaQuery here
-    // instead keeps the resolution visible and, just as importantly, makes
-    // this build method a MediaQuery dependent, so it reruns automatically
-    // whenever the OS brightness setting changes.
-    final effectiveBrightness = switch (controller.mode) {
-      ThemeMode.light => Brightness.light,
-      ThemeMode.dark => Brightness.dark,
-      ThemeMode.system => MediaQuery.platformBrightnessOf(context),
-    };
-
     return MaterialApp.router(
       title: 'SocialFeed',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: effectiveBrightness == Brightness.dark
-          ? ThemeMode.dark
-          : ThemeMode.light,
+      themeMode: widget.themeModeController.mode,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: getIt<GoRouter>(),

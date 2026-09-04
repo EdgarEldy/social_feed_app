@@ -24,7 +24,14 @@ class DioClient {
   /// [tokenStorage] is handed to the [AuthInterceptor] attached below; it is
   /// a required parameter rather than resolved internally via `getIt` so
   /// this factory stays a plain, easily testable function.
-  static Dio create({required SecureTokenStorage tokenStorage}) {
+  ///
+  /// [onSessionExpired], if supplied, is passed straight through to
+  /// [AuthInterceptor]'s constructor of the same name; see that class's doc
+  /// for why it is a callback rather than a direct `AuthStore` dependency.
+  static Dio create({
+    required SecureTokenStorage tokenStorage,
+    void Function()? onSessionExpired,
+  }) {
     // A missing or misspelled key must fail loudly at startup rather than
     // silently pointing Dio at an empty base URL, which would otherwise
     // surface as a confusing connection error much later.
@@ -65,7 +72,14 @@ class DioClient {
     // Added after the logger above so every request/response the logger
     // prints already reflects what AuthInterceptor did to it (the attached
     // bearer header, or a transparent 401 retry).
-    dio.interceptors.add(AuthInterceptor(dio, tokenStorage, baseUrl: baseUrl));
+    dio.interceptors.add(
+      AuthInterceptor(
+        dio,
+        tokenStorage,
+        baseUrl: baseUrl,
+        onSessionExpired: onSessionExpired,
+      ),
+    );
 
     return dio;
   }

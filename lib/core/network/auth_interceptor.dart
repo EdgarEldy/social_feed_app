@@ -17,7 +17,9 @@ import 'api_endpoints.dart';
 /// `POST /auth/login`. That case can reach this same "no refresh token"
 /// branch (a fresh install has neither an access nor a refresh token
 /// stored), but must not be tagged as `sessionExpired` since there was
-/// never a session to expire.
+/// never a session to expire. The same two spots also invoke
+/// [_onSessionExpired], if one was supplied, so the app's `AuthStore` can
+/// clear its in-memory session the moment a forced sign-out happens.
 ///
 /// This interceptor is attached to the single intercepted [Dio] instance
 /// (`getIt<Dio>()`) that every remote datasource in the app shares. That
@@ -33,11 +35,34 @@ import 'api_endpoints.dart';
 /// [_dio] instance passed in by [DioClient.create], since that is a fresh,
 /// unrelated request and gets the benefit of the logger/interceptor chain.
 class AuthInterceptor extends Interceptor {
-  AuthInterceptor(this._dio, this._tokenStorage, {required String baseUrl})
-    : _refreshDio = Dio(BaseOptions(baseUrl: baseUrl));
+  AuthInterceptor(
+    this._dio,
+    this._tokenStorage, {
+    required String baseUrl,
+    void Function()? onSessionExpired,
+  }) : _refreshDio = Dio(BaseOptions(baseUrl: baseUrl)),
+       // Deliberately not `this._onSessionExpired`: that would make the
+       // named parameter itself private (`_onSessionExpired`), which
+       // callers outside this library (e.g. DioClient.create) could not
+       // pass a value for at all.
+       // ignore: prefer_initializing_formals
+       _onSessionExpired = onSessionExpired;
 
   final Dio _dio;
   final SecureTokenStorage _tokenStorage;
+
+  /// Notified, if supplied, the moment a request that was actually
+  /// authenticated ([wasAuthenticatedRequest]) is tagged as
+  /// `sessionExpired` below, i.e. exactly when `AuthStore.forceSignOut()`
+  /// (wired up at the `get_it` composition root) should run.
+  ///
+  /// This is a callback rather than a direct `AuthStore` dependency because
+  /// [AuthInterceptor] is constructed inside [DioClient.create], and
+  /// `AuthStore` transitively depends on that same [Dio] instance (through
+  /// `AuthRepository`/`AuthRemoteDatasource`). Taking `AuthStore` directly
+  /// here would be a circular dependency at construction time; a callback
+  /// resolved lazily, only when it actually fires, breaks that cycle.
+  final void Function()? _onSessionExpired;
 
   /// A bare, non-intercepted client used solely for `POST /auth/refresh`.
   /// See the class doc for why this cannot be [_dio].
@@ -111,6 +136,7 @@ class AuthInterceptor extends Interceptor {
       await _tokenStorage.clearTokens();
       if (wasAuthenticatedRequest) {
         err.requestOptions.extra[_sessionExpiredKey] = true;
+        _onSessionExpired?.call();
       }
       handler.next(err);
       return;
@@ -119,8 +145,9 @@ class AuthInterceptor extends Interceptor {
     final refreshed = await _refreshAccessToken(refreshToken);
     if (!refreshed) {
       // _refreshAccessToken already cleared the tokens on failure; the
-      // original 401 propagates so the caller (eventually AuthStore, wired
-      // up in a later task of this branch) can react to a forced sign-out.
+      // original 401 propagates, and _onSessionExpired fires so AuthStore
+      // (wired up at the get_it composition root) can react to a forced
+      // sign-out.
       //
       // In practice this branch is only reachable for a previously
       // authenticated request: saveTokens/clearTokens in
@@ -132,6 +159,7 @@ class AuthInterceptor extends Interceptor {
       // not silently depend on that storage invariant holding forever.
       if (wasAuthenticatedRequest) {
         err.requestOptions.extra[_sessionExpiredKey] = true;
+        _onSessionExpired?.call();
       }
       handler.next(err);
       return;

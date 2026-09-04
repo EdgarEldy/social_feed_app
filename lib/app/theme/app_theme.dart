@@ -18,21 +18,22 @@ abstract final class AppTheme {
 
   /// The light theme, used whenever the app's effective brightness resolves
   /// to [Brightness.light].
-  static final ThemeData light = ThemeData(
-    useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: _seedColor,
-      brightness: Brightness.light,
-    ),
-  );
+  static final ThemeData light = _themeFor(Brightness.light);
 
   /// The dark theme, used whenever the app's effective brightness resolves
   /// to [Brightness.dark].
-  static final ThemeData dark = ThemeData(
-    useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: _seedColor,
-      brightness: Brightness.dark,
-    ),
-  );
+  static final ThemeData dark = _themeFor(Brightness.dark);
+
+  /// Builds a [ThemeData] for [brightness] from the shared seed color.
+  ///
+  /// [light] and [dark] only ever differ in the brightness passed to
+  /// [ColorScheme.fromSeed], so that single difference is factored out here
+  /// instead of being duplicated across two near-identical ThemeData blocks.
+  static ThemeData _themeFor(Brightness brightness) => ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: _seedColor,
+          brightness: brightness,
+        ),
+      );
 }

@@ -1,7 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 
 import '../../../../core/errors/failure.dart';
-import '../entities/user.dart';
+import '../entities/auth_session.dart';
 
 /// Contract for the authentication endpoints in the API Contract:
 /// `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` and
@@ -25,11 +25,10 @@ abstract class AuthRepository {
   /// Calls `POST /auth/register` with `{ email, password, displayName }`.
   ///
   /// Returns the created `user` together with the `accessToken` and
-  /// `refreshToken` from the response, as a record (matching the pagination
-  /// record pattern used in `post_repository.dart`), so the calling usecase
-  /// can decide how to persist them.
-  Future<Either<Failure, ({User user, String accessToken, String refreshToken})>>
-  register({
+  /// `refreshToken` from the response, as an `AuthSession` (replacing the
+  /// anonymous record this used to spell out separately on [register] and
+  /// [login]), so the calling usecase can decide how to persist them.
+  Future<Either<Failure, AuthSession>> register({
     required String email,
     required String password,
     required String displayName,
@@ -39,8 +38,7 @@ abstract class AuthRepository {
   ///
   /// Returns the authenticated `user` together with the `accessToken` and
   /// `refreshToken` from the response, for the same reason as [register].
-  Future<Either<Failure, ({User user, String accessToken, String refreshToken})>>
-  login({
+  Future<Either<Failure, AuthSession>> login({
     required String email,
     required String password,
   });

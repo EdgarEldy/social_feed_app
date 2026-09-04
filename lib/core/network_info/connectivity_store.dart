@@ -32,13 +32,32 @@ abstract class _ConnectivityStore with Store {
   bool isOnline = true;
 
   /// Runs the initial connectivity check and starts listening for changes.
+  ///
+  /// This runs unawaited from the constructor, so any exception it throws
+  /// would otherwise become an unhandled async error and, worse, would leave
+  /// [isOnline] stuck at its `true` default forever if the initial check is
+  /// what failed. Both steps are guarded so that a platform failure on the
+  /// one-shot [Connectivity.checkConnectivity] call still lets the ongoing
+  /// [Connectivity.onConnectivityChanged] subscription start, which is what
+  /// eventually corrects [isOnline] once a real connectivity change fires.
   Future<void> _init() async {
-    final result = await _connectivity.checkConnectivity();
-    _updateStatus(result);
+    try {
+      final result = await _connectivity.checkConnectivity();
+      _updateStatus(result);
+    } catch (_) {
+      // Leave `isOnline` at its current value rather than guessing. The
+      // subscription started below is still our best chance at getting a
+      // correct value soon.
+    }
 
-    _subscription = _connectivity.onConnectivityChanged.listen(
-      _updateStatus,
-    );
+    try {
+      _subscription = _connectivity.onConnectivityChanged.listen(
+        _updateStatus,
+      );
+    } catch (_) {
+      // If even subscribing throws, there is nothing further this store can
+      // do; `isOnline` simply keeps whatever value it last had.
+    }
   }
 
   @action

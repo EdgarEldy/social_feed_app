@@ -9,6 +9,12 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../auth/presentation/stores/auth_store.dart';
+import '../../../comments/domain/usecases/add_comment_usecase.dart';
+import '../../../comments/domain/usecases/delete_comment_usecase.dart';
+import '../../../comments/domain/usecases/get_comments_usecase.dart';
+import '../../../comments/presentation/stores/comments_store.dart';
+import '../../../comments/presentation/widgets/comment_input.dart';
+import '../../../comments/presentation/widgets/comments_section.dart';
 import '../../domain/entities/post.dart';
 import '../stores/posts_store.dart';
 
@@ -19,6 +25,15 @@ import '../stores/posts_store.dart';
 /// other cards, but the same [BoxFit.cover] keeps the crop behavior (and
 /// therefore the [Hero] animation) consistent between the two.
 const double _postDetailImageHeight = 260;
+
+/// How close to the bottom of the page's scroll extent (in logical pixels)
+/// the user has to get before the next page of comments starts loading.
+///
+/// Mirrors `FeedPage`'s own `_loadMoreThreshold`: comments paginate off the
+/// same `SingleChildScrollView` this page already scrolls, rather than a
+/// second independent scroll surface (see `CommentsSection`'s own doc for
+/// why it renders as a non-scrolling `ListView`).
+const double _commentsLoadMoreThreshold = 300;
 
 /// The full-post screen reached from a [PostCard] tap or a deep link,
 /// showing a post's title, content, author, image, and read-only
@@ -70,11 +85,42 @@ class PostDetailPage extends StatefulWidget {
 class _PostDetailPageState extends State<PostDetailPage> {
   final PostsStore _postsStore = getIt<PostsStore>();
 
+  // CommentsStore is deliberately not resolved via getIt<CommentsStore>():
+  // it is not registered in injection_container.dart at all, per its own
+  // class doc, since it is scoped to one PostDetailPage instance rather than
+  // shared app-wide. This page constructs it directly from the three
+  // usecases getIt does own, and simply drops the reference when this State
+  // is disposed.
+  final CommentsStore _commentsStore = CommentsStore(
+    getCommentsUseCase: getIt<GetCommentsUseCase>(),
+    addCommentUseCase: getIt<AddCommentUseCase>(),
+    deleteCommentUseCase: getIt<DeleteCommentUseCase>(),
+  );
+
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     if (widget.initialPost == null) {
       _postsStore.loadPost(widget.postId);
+    }
+    _commentsStore.loadComments(widget.postId);
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final position = _scrollController.position;
+    if (position.pixels >=
+        position.maxScrollExtent - _commentsLoadMoreThreshold) {
+      _commentsStore.loadMore(widget.postId);
     }
   }
 
@@ -89,6 +135,19 @@ class _PostDetailPageState extends State<PostDetailPage> {
       return;
     }
     context.pop();
+  }
+
+  Future<void> _openAddCommentSheet(Post post) {
+    return showModalBottomSheet<void>(
+      context: context,
+      // Lets the sheet grow to fit its content instead of being capped at
+      // roughly half the screen height, which matters once the on-screen
+      // keyboard also claims a chunk of the viewport.
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return _AddCommentSheet(commentsStore: _commentsStore, post: post);
+      },
+    );
   }
 
   @override
@@ -112,6 +171,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
           return _PostDetailScaffold(
             post: post,
             onDelete: () => _handleDelete(post),
+            commentsStore: _commentsStore,
+            scrollController: _scrollController,
+            onAddComment: () => _openAddCommentSheet(post),
           );
         },
       );
@@ -143,6 +205,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
         return _PostDetailScaffold(
           post: post,
           onDelete: () => _handleDelete(post),
+          commentsStore: _commentsStore,
+          scrollController: _scrollController,
+          onAddComment: () => _openAddCommentSheet(post),
         );
       },
     );
@@ -154,10 +219,19 @@ class _PostDetailPageState extends State<PostDetailPage> {
 /// Split out from [_PostDetailPageState] so the loading/error/data branching
 /// above stays readable, keeping both well under the ~150 line guideline.
 class _PostDetailScaffold extends StatelessWidget {
-  const _PostDetailScaffold({required this.post, required this.onDelete});
+  const _PostDetailScaffold({
+    required this.post,
+    required this.onDelete,
+    required this.commentsStore,
+    required this.scrollController,
+    required this.onAddComment,
+  });
 
   final Post post;
   final VoidCallback onDelete;
+  final CommentsStore commentsStore;
+  final ScrollController scrollController;
+  final VoidCallback onAddComment;
 
   @override
   Widget build(BuildContext context) {
@@ -167,8 +241,14 @@ class _PostDetailScaffold extends StatelessWidget {
         actions: [_PostDetailAuthorMenu(post: post, onDelete: onDelete)],
       ),
       body: SingleChildScrollView(
+        controller: scrollController,
         padding: const EdgeInsets.all(AppDimens.spacingLg),
-        child: _PostDetailContent(post: post),
+        child: _PostDetailContent(post: post, commentsStore: commentsStore),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: onAddComment,
+        tooltip: 'Add comment',
+        child: const Icon(Icons.add_comment_outlined),
       ),
     );
   }
@@ -215,9 +295,10 @@ class _PostDetailAuthorMenu extends StatelessWidget {
 /// [post]'s title, author byline, created date, content, optional image, and
 /// read-only stats, in that order.
 class _PostDetailContent extends StatelessWidget {
-  const _PostDetailContent({required this.post});
+  const _PostDetailContent({required this.post, required this.commentsStore});
 
   final Post post;
+  final CommentsStore commentsStore;
 
   @override
   Widget build(BuildContext context) {
@@ -238,6 +319,14 @@ class _PostDetailContent extends StatelessWidget {
         Text(post.content, style: theme.textTheme.bodyLarge),
         const SizedBox(height: AppDimens.spacingLg),
         _PostDetailStats(post: post),
+        const SizedBox(height: AppDimens.spacingLg),
+        const Divider(),
+        const SizedBox(height: AppDimens.spacingSm),
+        CommentsSection(
+          store: commentsStore,
+          postId: post.id,
+          postAuthorId: post.authorId,
+        ),
       ],
     );
   }
@@ -325,12 +414,14 @@ class _PostDetailImage extends StatelessWidget {
   }
 }
 
-/// The read-only comment/like counts shown at the bottom of the detail page.
+/// The read-only comment/like counts shown at the bottom of the detail page,
+/// just above the real `CommentsSection` underneath it.
 ///
-/// Purely decorative numbers on this branch, the same as [PostCard]'s own
-/// stats row: `feature/comments` replaces this with a real `CommentsSection`
-/// underneath, and `feature/likes` replaces the heart icon with a tappable
-/// `LikeButton`.
+/// Purely decorative numbers, the same as [PostCard]'s own stats row: the
+/// counts themselves come from [Post.commentsCount]/[Post.likesCount], not
+/// from `CommentsSection`'s own loaded thread length, so they stay accurate
+/// even before any page of comments has loaded. `feature/likes` replaces the
+/// heart icon with a tappable `LikeButton`.
 class _PostDetailStats extends StatelessWidget {
   const _PostDetailStats({required this.post});
 
@@ -349,6 +440,42 @@ class _PostDetailStats extends StatelessWidget {
         const SizedBox(width: AppDimens.spacingXs),
         Text('${post.likesCount}', style: theme.textTheme.bodyMedium),
       ],
+    );
+  }
+}
+
+/// The bottom sheet content opened by the floating action button: a
+/// [CommentInput] wrapped so it is never hidden behind the on-screen
+/// keyboard.
+///
+/// `showModalBottomSheet` itself is opened with `isScrollControlled: true`
+/// by [_PostDetailPageState._openAddCommentSheet]; the remaining half of
+/// keyboard-aware layout happens here, wrapping [CommentInput] in a
+/// [Padding] sized to [MediaQuery.viewInsetsOf] (the space the keyboard
+/// currently occupies) plus a [SafeArea] for the device's own bottom inset
+/// (a gesture bar, a notch), so the field and send button stay visible and
+/// tappable once the keyboard opens instead of sliding out from under it.
+class _AddCommentSheet extends StatelessWidget {
+  const _AddCommentSheet({required this.commentsStore, required this.post});
+
+  final CommentsStore commentsStore;
+  final Post post;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppDimens.spacingMd),
+          child: CommentInput(
+            onSubmit: (content) async {
+              await commentsStore.addComment(post.id, content);
+              return commentsStore.submitError == null;
+            },
+          ),
+        ),
+      ),
     );
   }
 }

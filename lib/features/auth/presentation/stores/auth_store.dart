@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:fpdart/fpdart.dart' show Either;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mobx/mobx.dart';
 
 import '../../../../core/errors/failure.dart';
 import '../../../../core/storage/secure_token_storage.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/usecases/sign_in_usecase.dart';
+import '../../domain/usecases/sign_in_with_google_usecase.dart';
 import '../../domain/usecases/sign_out_usecase.dart';
 import '../../domain/usecases/sign_up_usecase.dart';
 
@@ -65,14 +69,60 @@ abstract class _AuthStore with Store {
   _AuthStore({
     required this._signUpUseCase,
     required this._signInUseCase,
+    required this._signInWithGoogleUseCase,
     required this._signOutUseCase,
     required this._tokenStorage,
+    required this._googleSignIn,
+    // The analyzer's unused_element_parameter check does not trace call
+    // sites through `AuthStore(...)`, the compiler-generated forwarding
+    // constructor for the `class AuthStore = _AuthStore with _$AuthStore`
+    // mixin application above; it only looks for direct `_AuthStore(...)`
+    // calls, which no code makes. injection_container.dart does supply this
+    // parameter via `AuthStore(...)`, see its own comment for why.
+    // ignore: unused_element_parameter
+    this._deregisterPushToken,
   });
 
   final SignUpUseCase _signUpUseCase;
   final SignInUseCase _signInUseCase;
+  final SignInWithGoogleUseCase _signInWithGoogleUseCase;
   final SignOutUseCase _signOutUseCase;
   final SecureTokenStorage _tokenStorage;
+  final GoogleSignIn _googleSignIn;
+
+  /// Deregisters this device's push token on sign-out, if push
+  /// notifications (feature/integrations, bonus) were wired up.
+  ///
+  /// A callback rather than a direct `PushNotificationService` dependency,
+  /// for the same circular-dependency reason `DioClient.create`'s
+  /// `onSessionExpired` callback exists (see `injection_container.dart`'s
+  /// `_defaultDioFactory` doc): `PushNotificationService` depends on
+  /// `GoRouter`, which itself depends on `AuthStore`. A direct
+  /// `PushNotificationService` field here would make constructing
+  /// `AuthStore` re-enter its own not-yet-finished construction the first
+  /// time `get_it` resolves it. Resolving `getIt<PushNotificationService>()`
+  /// lazily inside this closure, only when [signOut]/[forceSignOut] actually
+  /// run, breaks that cycle since every registration exists by then.
+  ///
+  /// Optional and nullable, rather than required like the fields above, so
+  /// every existing test that constructs an `AuthStore` directly (none of
+  /// which care about push notifications) does not need to also supply one.
+  ///
+  /// Takes an optional explicit access token because [forceSignOut] needs
+  /// to pass the one that was valid immediately before this session was
+  /// invalidated: by the time it runs, `AuthInterceptor` has already
+  /// cleared the stored one. [signOut] does not need to pass one; it
+  /// deregisters before the stored token is cleared.
+  final Future<void> Function({String? accessToken})? _deregisterPushToken;
+
+  /// Whether [_googleSignIn] has already had `initialize()` called on it.
+  ///
+  /// `GoogleSignIn.initialize()` must be called exactly once, and awaited,
+  /// before any other method on the singleton instance is used; this flag
+  /// is what lets [signInWithGoogle] call it lazily on first use instead of
+  /// requiring `configureDependencies()` itself to become `async` just for
+  /// this one bonus flow.
+  bool _isGoogleSignInInitialized = false;
 
   /// The signed-in user's profile, once known.
   ///
@@ -176,6 +226,58 @@ abstract class _AuthStore with Store {
     isSubmitting = false;
   }
 
+  /// Drives Google's native account picker and, on success, signs the
+  /// chosen account in via `POST /auth/google`.
+  ///
+  /// Mirrors [signIn] end to end: it clears [lastError], flips
+  /// [isSubmitting], and on a successful result updates [currentUser]/
+  /// [hasStoredSession] the exact same way through [_applyAuthResult], so
+  /// there is no separate "Google session" state anywhere in this store. If
+  /// the picked account's email already exists under a password-based
+  /// account, `SignInWithGoogleUseCase` returns whatever `Left` the server
+  /// sent back, and it surfaces through [lastError] like any other auth
+  /// failure; there is no silent-merge branch here.
+  ///
+  /// A user cancelling the Google account picker throws a
+  /// [GoogleSignInException] with [GoogleSignInExceptionCode.canceled]; that
+  /// case is swallowed rather than surfaced as [lastError], since backing
+  /// out of the picker is not really a failure to report.
+  @action
+  Future<void> signInWithGoogle() async {
+    lastError = null;
+    isSubmitting = true;
+    try {
+      if (!_isGoogleSignInInitialized) {
+        await _googleSignIn.initialize();
+        _isGoogleSignInInitialized = true;
+      }
+
+      final account = await _googleSignIn.authenticate();
+      final idToken = account.authentication.idToken;
+      if (idToken == null) {
+        lastError = const ValidationFailure(
+          'Google sign-in did not return an ID token.',
+        );
+        return;
+      }
+
+      final result = await _signInWithGoogleUseCase(idToken: idToken);
+      _applyAuthResult(result);
+    } on GoogleSignInException catch (e) {
+      if (e.code != GoogleSignInExceptionCode.canceled) {
+        lastError = ServerFailure(e.description ?? 'Google sign-in failed.');
+      }
+    } catch (e) {
+      // Anything other than a GoogleSignInException (a platform channel
+      // error, a network failure reaching Google, ...) would otherwise
+      // escape this method uncaught, leaving lastError unset and the user
+      // with no feedback at all beyond a silently-reset isSubmitting.
+      lastError = ServerFailure('Google sign-in failed: $e');
+    } finally {
+      isSubmitting = false;
+    }
+  }
+
   /// Signs the current user out, clearing both the stored tokens and the
   /// in-memory session state.
   ///
@@ -188,9 +290,23 @@ abstract class _AuthStore with Store {
   Future<void> signOut() async {
     lastError = null;
     isSubmitting = true;
-    final result = await _signOutUseCase();
-    result.match((failure) => lastError = failure, (_) => _clearSession());
-    isSubmitting = false;
+    try {
+      // Awaited, and deliberately before _signOutUseCase() below: DELETE
+      // /devices/:pushToken is an authenticated endpoint, and
+      // SignOutUseCase unconditionally clears the stored access token
+      // before returning, so deregistering has to happen while that token
+      // is still there for AuthInterceptor to attach.
+      // PushNotificationService.deregister() is documented as never
+      // throwing, so this should already be best-effort in practice; the
+      // surrounding try/finally is a defensive backstop so a bug there (or
+      // in whatever closure a test/future caller supplies) cannot leave
+      // isSubmitting stuck true and the user unable to sign out.
+      await _deregisterPushToken?.call();
+      final result = await _signOutUseCase();
+      result.match((failure) => lastError = failure, (_) => _clearSession());
+    } finally {
+      isSubmitting = false;
+    }
   }
 
   /// Clears the in-memory session without touching stored tokens or calling
@@ -202,9 +318,23 @@ abstract class _AuthStore with Store {
   /// sign-out"), where the tokens are already cleared by the interceptor
   /// itself and only the in-memory store still needs to catch up.
   @action
-  void forceSignOut() {
+  void forceSignOut([String? expiredAccessToken]) {
     lastError = null;
     _clearSession();
+    // A 401 that survives a silent refresh means this device's session is
+    // gone server-side too, so it should stop receiving push notifications
+    // meant for whoever is signed in next; same best-effort reasoning as
+    // signOut() above. forceSignOut() itself stays synchronous (it is
+    // invoked from AuthInterceptor's onSessionExpired callback), so this
+    // call is fire-and-forget rather than awaited. expiredAccessToken is
+    // the access token AuthInterceptor captured immediately before
+    // clearing it, passed through explicitly since by this point the
+    // stored token is already gone and AuthInterceptor's usual attachment
+    // would have nothing left to attach to this authenticated call.
+    final deregister = _deregisterPushToken;
+    if (deregister != null) {
+      unawaited(deregister(accessToken: expiredAccessToken));
+    }
   }
 
   /// Replaces [currentUser] with [user], typically after a successful

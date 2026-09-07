@@ -162,7 +162,16 @@ void main() {
     when(() => tokenStorage.getAccessToken()).thenAnswer((_) async => 'stale-access-token');
     when(() => tokenStorage.getRefreshToken()).thenAnswer((_) async => 'stored-refresh-token');
 
-    dio.interceptors.add(AuthInterceptor(dio, tokenStorage, baseUrl: refreshBaseUrl));
+    String? capturedExpiredAccessToken;
+    dio.interceptors.add(
+      AuthInterceptor(
+        dio,
+        tokenStorage,
+        baseUrl: refreshBaseUrl,
+        onSessionExpired: (expiredAccessToken) =>
+            capturedExpiredAccessToken = expiredAccessToken,
+      ),
+    );
 
     dioAdapter.onGet(
       '/protected',
@@ -193,6 +202,11 @@ void main() {
     // error so the mapper reports UnauthorizedFailure, not a generic
     // ServerFailure indistinguishable from any other failed request.
     expect(mapDioExceptionToFailure(caughtError), isA<UnauthorizedFailure>());
+    // Regression: _performRefresh's failure path clears tokens itself, so
+    // onSessionExpired must still receive the token that was there
+    // immediately before that clear, not null, for
+    // PushNotificationService.deregister()'s Authorization header to work.
+    expect(capturedExpiredAccessToken, 'stale-access-token');
   });
 
   test('clears tokens and propagates the original error, without retrying, when the refresh response body does not match the documented shape', () async {
@@ -284,6 +298,7 @@ void main() {
     when(() => tokenStorage.getRefreshToken()).thenAnswer((_) async => 'stored-refresh-token');
 
     var sessionExpiredCallCount = 0;
+    String? capturedExpiredAccessToken;
     var requestCount = 0;
     // Counts every request that actually leaves through `dio`, including any
     // retry AuthInterceptor.onError might issue via `_dio.fetch`, since that
@@ -301,7 +316,10 @@ void main() {
         dio,
         tokenStorage,
         baseUrl: refreshBaseUrl,
-        onSessionExpired: () => sessionExpiredCallCount++,
+        onSessionExpired: (expiredAccessToken) {
+          sessionExpiredCallCount++;
+          capturedExpiredAccessToken = expiredAccessToken;
+        },
       ),
     );
 
@@ -326,6 +344,14 @@ void main() {
     // No refresh attempted at all for an already-retried request.
     expect(refreshCallCount, 0);
     expect(sessionExpiredCallCount, 1);
+    // The token onSessionExpired receives must be the one that was in
+    // storage immediately before clearTokens() ran below, not null/empty:
+    // AuthStore.forceSignOut passes this straight through to
+    // PushNotificationService.deregister() as the DELETE
+    // /devices/:pushToken call's Authorization header, since the stored
+    // token clearTokens() just wiped is no longer there for
+    // AuthInterceptor's usual attachment to pick up.
+    expect(capturedExpiredAccessToken, 'new-access-token');
     verify(() => tokenStorage.clearTokens()).called(1);
     verifyNever(
       () => tokenStorage.saveTokens(

@@ -93,6 +93,15 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: AppDimens.spacingMd),
+                  Observer(
+                    builder: (_) => OutlinedButton(
+                      onPressed: _authStore.isSubmitting
+                          ? null
+                          : _authStore.signInWithGoogle,
+                      child: Text(l10n.continueWithGoogleButtonLabel),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimens.spacingMd),
                   TextButton(
                     onPressed: () => context.go('/register'),
                     child: Text(l10n.noAccountPrompt),

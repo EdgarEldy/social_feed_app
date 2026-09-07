@@ -149,6 +149,16 @@ mixin _$AuthStore on _AuthStore, Store {
     );
   }
 
+  late final _$signInWithGoogleAsyncAction = AsyncAction(
+    '_AuthStore.signInWithGoogle',
+    context: context,
+  );
+
+  @override
+  Future<void> signInWithGoogle() {
+    return _$signInWithGoogleAsyncAction.run(() => super.signInWithGoogle());
+  }
+
   late final _$signOutAsyncAction = AsyncAction(
     '_AuthStore.signOut',
     context: context,
@@ -165,12 +175,12 @@ mixin _$AuthStore on _AuthStore, Store {
   );
 
   @override
-  void forceSignOut() {
+  void forceSignOut([String? expiredAccessToken]) {
     final _$actionInfo = _$_AuthStoreActionController.startAction(
       name: '_AuthStore.forceSignOut',
     );
     try {
-      return super.forceSignOut();
+      return super.forceSignOut(expiredAccessToken);
     } finally {
       _$_AuthStoreActionController.endAction(_$actionInfo);
     }

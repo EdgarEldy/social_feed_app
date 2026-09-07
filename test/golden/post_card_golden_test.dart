@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:social_feed_app/app/theme/app_theme.dart';
@@ -8,6 +9,7 @@ import 'package:social_feed_app/core/l10n/app_localizations.dart';
 import 'package:social_feed_app/core/storage/secure_token_storage.dart';
 import 'package:social_feed_app/features/auth/domain/entities/user.dart';
 import 'package:social_feed_app/features/auth/domain/usecases/sign_in_usecase.dart';
+import 'package:social_feed_app/features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 import 'package:social_feed_app/features/auth/domain/usecases/sign_out_usecase.dart';
 import 'package:social_feed_app/features/auth/domain/usecases/sign_up_usecase.dart';
 import 'package:social_feed_app/features/auth/presentation/stores/auth_store.dart';
@@ -17,11 +19,16 @@ import 'package:social_feed_app/features/posts/presentation/widgets/post_card.da
 
 class _MockSignInUseCase extends Mock implements SignInUseCase {}
 
+class _MockSignInWithGoogleUseCase extends Mock
+    implements SignInWithGoogleUseCase {}
+
 class _MockSignUpUseCase extends Mock implements SignUpUseCase {}
 
 class _MockSignOutUseCase extends Mock implements SignOutUseCase {}
 
 class _MockSecureTokenStorage extends Mock implements SecureTokenStorage {}
+
+class _MockGoogleSignIn extends Mock implements GoogleSignIn {}
 
 class _MockToggleLikeUseCase extends Mock implements ToggleLikeUseCase {}
 
@@ -33,8 +40,10 @@ void main() {
     final authStore = AuthStore(
       signUpUseCase: _MockSignUpUseCase(),
       signInUseCase: _MockSignInUseCase(),
+      signInWithGoogleUseCase: _MockSignInWithGoogleUseCase(),
       signOutUseCase: _MockSignOutUseCase(),
       tokenStorage: _MockSecureTokenStorage(),
+      googleSignIn: _MockGoogleSignIn(),
     );
     authStore.updateCurrentUser(
       User(

@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'app/app.dart';
 import 'core/di/injection_container.dart';
+import 'core/notifications/push_notification_service.dart';
 import 'core/sync/sync_service.dart';
 import 'features/auth/presentation/stores/auth_store.dart';
 
@@ -39,6 +41,25 @@ Future<void> bootstrap({required String envFileName}) async {
     // ConnectivityStore does through ConnectivityAwareOfflineBanner, so it
     // is resolved here explicitly, once, before the widget tree is built.
     getIt<SyncService>();
+
+    // Push notifications (feature/integrations, bonus) get their own,
+    // separate try/catch rather than sharing the outer one above.
+    // Firebase.initializeApp() throws when the native
+    // google-services.json/GoogleService-Info.plist config files are
+    // missing, which is the expected state of this repository (no real
+    // Firebase project is checked in, see the README's "Push Notifications
+    // Setup" section). Letting that exception propagate into the outer
+    // try/catch would take down the entire app over an optional bonus
+    // feature; every other startup step above (env, DI, session
+    // restoration, sync) has already succeeded by this point and should
+    // still boot normally even if push notifications cannot.
+    try {
+      await getIt<PushNotificationService>().initialize();
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('Push notification setup skipped: $error');
+      }
+    }
 
     runApp(App());
   } catch (error) {

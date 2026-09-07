@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../app/router/app_router.dart';
 import '../../app/router/auth_refresh_listenable.dart';
@@ -8,6 +9,7 @@ import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/usecases/sign_in_usecase.dart';
+import '../../features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 import '../../features/auth/domain/usecases/sign_out_usecase.dart';
 import '../../features/auth/domain/usecases/sign_up_usecase.dart';
 import '../../features/auth/presentation/stores/auth_store.dart';
@@ -43,6 +45,7 @@ import '../../features/likes/domain/usecases/toggle_like_usecase.dart';
 import '../database/app_database.dart';
 import '../network/dio_client.dart';
 import '../network_info/connectivity_store.dart';
+import '../notifications/push_notification_service.dart';
 import '../storage/secure_token_storage.dart';
 import '../sync/composite_pending_write_replayer.dart';
 import '../sync/sync_service.dart';
@@ -162,19 +165,49 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
     ),
   );
 
+  // SignInWithGoogleUseCase (feature/integrations, bonus) follows the exact
+  // same shape as SignInUseCase above: it persists the token pair returned
+  // by POST /auth/google via SecureTokenStorage and hands AuthStore back a
+  // plain User.
+  getIt.registerLazySingleton<SignInWithGoogleUseCase>(
+    () => SignInWithGoogleUseCase(
+      authRepository: getIt<AuthRepository>(),
+      tokenStorage: getIt<SecureTokenStorage>(),
+    ),
+  );
+
+  // GoogleSignIn.instance is already a process-wide singleton (its
+  // constructor is private, see the package's own class doc), so this just
+  // registers that existing instance with get_it rather than constructing a
+  // new one, the same "one shared instance resolved through getIt<T>()"
+  // guarantee every other registration in this function provides.
+  getIt.registerLazySingleton<GoogleSignIn>(() => GoogleSignIn.instance);
+
   // AuthStore is the last piece of the auth dependency chain: it depends on
-  // all three usecases above plus SecureTokenStorage directly, for
-  // restoreSession's one-shot read of the stored access token (see the
-  // store's class doc for why it only reads, never calls a repository
-  // method, to restore a session). registerLazySingleton keeps this a
-  // single shared instance, resolved both by the widgets that build the
-  // login/register forms and by the go_router redirect guard.
+  // all four usecases above plus SecureTokenStorage and GoogleSignIn
+  // directly, for restoreSession's one-shot read of the stored access token
+  // and for driving the native Google account picker (see the store's class
+  // doc for why it only reads, never calls a repository method, to restore
+  // a session). registerLazySingleton keeps this a single shared instance,
+  // resolved both by the widgets that build the login/register forms and by
+  // the go_router redirect guard.
   getIt.registerLazySingleton<AuthStore>(
     () => AuthStore(
       signUpUseCase: getIt<SignUpUseCase>(),
       signInUseCase: getIt<SignInUseCase>(),
+      signInWithGoogleUseCase: getIt<SignInWithGoogleUseCase>(),
       signOutUseCase: getIt<SignOutUseCase>(),
       tokenStorage: getIt<SecureTokenStorage>(),
+      googleSignIn: getIt<GoogleSignIn>(),
+      // Resolved lazily, only when signOut()/forceSignOut() actually run,
+      // not at the time this closure itself is built. PushNotificationService
+      // (registered near the very end of this function) depends on GoRouter,
+      // which itself depends on AuthStore, so reaching for
+      // getIt<PushNotificationService>() here eagerly would re-enter
+      // AuthStore's own not-yet-finished construction; see
+      // AuthStore's _deregisterPushToken doc for the full explanation.
+      deregisterPushToken: ({String? accessToken}) =>
+          getIt<PushNotificationService>().deregister(accessToken: accessToken),
     ),
   );
 
@@ -361,6 +394,19 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
     )..start(),
     dispose: (service) => service.dispose(),
   );
+
+  // PushNotificationService (feature/integrations, bonus) is registered last,
+  // now that both of its dependencies exist: Dio for the POST /devices and
+  // DELETE /devices/:pushToken calls, and GoRouter for navigating to a
+  // tapped notification's post via the same "resolved through getIt<T>()"
+  // pattern the router's own redirect guard uses to reach AuthStore. Unlike
+  // SyncService above, nothing here calls .initialize() eagerly: that call
+  // touches Firebase, which bootstrap.dart guards in its own try/catch
+  // separate from the rest of startup, so the resolve-and-initialize split
+  // happens there instead of at registration time.
+  getIt.registerLazySingleton<PushNotificationService>(
+    () => PushNotificationService(dio: getIt<Dio>(), router: getIt<GoRouter>()),
+  );
 }
 
 /// The production [Dio] factory used by [configureDependencies].
@@ -379,5 +425,6 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
 /// which point `getIt<AuthStore>()` resolves fine.
 Dio _defaultDioFactory() => DioClient.create(
   tokenStorage: getIt<SecureTokenStorage>(),
-  onSessionExpired: () => getIt<AuthStore>().forceSignOut(),
+  onSessionExpired: (expiredAccessToken) =>
+      getIt<AuthStore>().forceSignOut(expiredAccessToken),
 );

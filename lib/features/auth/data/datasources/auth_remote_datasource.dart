@@ -47,6 +47,18 @@ abstract class AuthRemoteDatasource {
     required String password,
   });
 
+  /// Calls `POST /auth/google` with `{ idToken }`.
+  ///
+  /// Returns the exact same [AuthSessionResponse] shape as [login] and
+  /// [register], per the API Contract. If the given email already exists
+  /// under a password-based account, the server responds with a 4xx and
+  /// its own `message`; that response is mapped through
+  /// [mapDioExceptionToFailure] into a plain [ServerFailure] the same way
+  /// every other auth error is, with no special-cased merge handling here.
+  Future<Either<Failure, AuthSessionResponse>> signInWithGoogle(
+    String idToken,
+  );
+
   /// Calls `POST /auth/refresh` with `{ refreshToken }`, returning the new
   /// `accessToken` from the response.
   Future<Either<Failure, String>> refresh(String refreshToken);
@@ -85,6 +97,16 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
     return _postForSession(
       ApiEndpoints.login,
       data: {'email': email, 'password': password},
+    );
+  }
+
+  @override
+  Future<Either<Failure, AuthSessionResponse>> signInWithGoogle(
+    String idToken,
+  ) {
+    return _postForSession(
+      ApiEndpoints.googleAuth,
+      data: {'idToken': idToken},
     );
   }
 

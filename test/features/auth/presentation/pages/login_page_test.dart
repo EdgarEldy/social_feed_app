@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
@@ -7,6 +8,8 @@ import 'package:social_feed_app/app/router/app_router.dart';
 import 'package:social_feed_app/app/router/auth_refresh_listenable.dart';
 import 'package:social_feed_app/core/di/injection_container.dart';
 import 'package:social_feed_app/core/errors/failure.dart';
+import 'package:social_feed_app/core/network_info/connectivity_store.dart';
+import 'package:social_feed_app/core/pagination/paginated_result.dart';
 import 'package:social_feed_app/core/storage/secure_token_storage.dart';
 import 'package:social_feed_app/features/auth/domain/entities/user.dart';
 import 'package:social_feed_app/features/auth/domain/usecases/sign_in_usecase.dart';
@@ -14,6 +17,13 @@ import 'package:social_feed_app/features/auth/domain/usecases/sign_out_usecase.d
 import 'package:social_feed_app/features/auth/domain/usecases/sign_up_usecase.dart';
 import 'package:social_feed_app/features/auth/presentation/pages/login_page.dart';
 import 'package:social_feed_app/features/auth/presentation/stores/auth_store.dart';
+import 'package:social_feed_app/features/posts/domain/entities/post.dart';
+import 'package:social_feed_app/features/posts/domain/usecases/create_post_usecase.dart';
+import 'package:social_feed_app/features/posts/domain/usecases/delete_post_usecase.dart';
+import 'package:social_feed_app/features/posts/domain/usecases/get_post_usecase.dart';
+import 'package:social_feed_app/features/posts/domain/usecases/get_posts_usecase.dart';
+import 'package:social_feed_app/features/posts/domain/usecases/update_post_usecase.dart';
+import 'package:social_feed_app/features/posts/presentation/stores/posts_store.dart';
 
 class _MockSignInUseCase extends Mock implements SignInUseCase {}
 
@@ -22,6 +32,18 @@ class _MockSignUpUseCase extends Mock implements SignUpUseCase {}
 class _MockSignOutUseCase extends Mock implements SignOutUseCase {}
 
 class _MockSecureTokenStorage extends Mock implements SecureTokenStorage {}
+
+class _MockGetPostsUseCase extends Mock implements GetPostsUseCase {}
+
+class _MockGetPostUseCase extends Mock implements GetPostUseCase {}
+
+class _MockCreatePostUseCase extends Mock implements CreatePostUseCase {}
+
+class _MockDeletePostUseCase extends Mock implements DeletePostUseCase {}
+
+class _MockUpdatePostUseCase extends Mock implements UpdatePostUseCase {}
+
+class _MockConnectivity extends Mock implements Connectivity {}
 
 void main() {
   late _MockSignInUseCase signInUseCase;
@@ -57,6 +79,30 @@ void main() {
       tokenStorage: tokenStorage,
     );
     getIt.registerSingleton<AuthStore>(authStore);
+
+    // The router navigation test below lands on the real FeedPage once
+    // login succeeds, and FeedPage/PostCard resolve PostsStore and
+    // ConnectivityStore straight from get_it (see feed_page_test.dart),
+    // so both need a registered instance even though this file is not
+    // exercising the feed itself.
+    final getPostsUseCase = _MockGetPostsUseCase();
+    when(
+      () => getPostsUseCase.call(cursor: any(named: 'cursor'), limit: any(named: 'limit')),
+    ).thenAnswer((_) async => const Right(PaginatedResult<Post>(items: [], nextCursor: null)));
+    getIt.registerSingleton<PostsStore>(
+      PostsStore(
+        getPostsUseCase: getPostsUseCase,
+        getPostUseCase: _MockGetPostUseCase(),
+        createPostUseCase: _MockCreatePostUseCase(),
+        deletePostUseCase: _MockDeletePostUseCase(),
+        updatePostUseCase: _MockUpdatePostUseCase(),
+      ),
+    );
+
+    final connectivity = _MockConnectivity();
+    when(() => connectivity.checkConnectivity()).thenAnswer((_) async => [ConnectivityResult.wifi]);
+    when(() => connectivity.onConnectivityChanged).thenAnswer((_) => const Stream.empty());
+    getIt.registerSingleton<ConnectivityStore>(ConnectivityStore(connectivity: connectivity));
   });
 
   tearDown(() async {

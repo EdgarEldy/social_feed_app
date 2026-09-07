@@ -702,22 +702,22 @@ The full post lifecycle: feed, pagination, detail, create/edit/delete, image upl
 
 ### Tasks
 
-- [ ] Create `PostRemoteDatasource` (`dio` calls for `GET /posts`, `GET /posts/:id`, `POST /posts`, `PATCH /posts/:id`, `DELETE /posts/:id`)
-- [ ] Create `PostLocalDatasource` (`sqflite` CRUD on `posts_cache`, built on the base from `feature/offline-and-sync`)
-- [ ] Create `PostRepositoryImpl` combining both datasources per the offline-first strategy
-- [ ] Create usecases `GetPostsUseCase`, `CreatePostUseCase`, `UpdatePostUseCase`, `DeletePostUseCase`
-- [ ] Create `PostsStore` (`@observable ObservableList<Post> posts`, `@action loadPosts()`/`loadMore()`, exposes the currently viewed post via an `@action loadPost(String id)`)
-- [ ] Build `FeedPage` with `ListView.builder`, empty/loading/error/offline states, `RefreshIndicator` for pull-to-refresh
-- [ ] Migrate `FeedPage` to `CustomScrollView` + `SliverAppBar` (collapsing app bar on scroll)
-- [ ] Implement cursor-based pagination (`nextCursor` from the API, load on scroll)
-- [ ] Build `PostCard` using the `AdaptiveGrid`/`LayoutBuilder` primitive from `feature/design-system`
-- [ ] Build `CreatePostPage`: form, `image_picker`, multipart upload via `dio` `FormData` with progress
-- [ ] Render images with `CachedNetworkImage` (placeholder and error state)
-- [ ] Add a `Hero` transition between the feed thumbnail and the detail image
-- [ ] Animate `PostCard` appearance with `AnimatedOpacity`/`AnimatedSlide`
-- [ ] Business rule: only the author can edit/delete their post; hide those actions otherwise
-- [ ] Unit test: `CreatePostUseCase` rejects empty title/content before hitting the repository
-- [ ] Widget test: `FeedPage` renders one `PostCard` per item from a mocked response; delete button hidden for non-authors
+- [x] Create `PostRemoteDatasource` (`dio` calls for `GET /posts`, `GET /posts/:id`, `POST /posts`, `PATCH /posts/:id`, `DELETE /posts/:id`)
+- [x] Create `PostLocalDatasource` (`sqflite` CRUD on `posts_cache`, built on the base from `feature/offline-and-sync`)
+- [x] Create `PostRepositoryImpl` combining both datasources per the offline-first strategy
+- [x] Create usecases `GetPostsUseCase`, `CreatePostUseCase`, `UpdatePostUseCase`, `DeletePostUseCase`
+- [x] Create `PostsStore` (`@observable ObservableList<Post> posts`, `@action loadPosts()`/`loadMore()`, exposes the currently viewed post via an `@action loadPost(String id)`)
+- [x] Build `FeedPage` with `ListView.builder`, empty/loading/error/offline states, `RefreshIndicator` for pull-to-refresh
+- [x] Migrate `FeedPage` to `CustomScrollView` + `SliverAppBar` (collapsing app bar on scroll)
+- [x] Implement cursor-based pagination (`nextCursor` from the API, load on scroll)
+- [x] Build `PostCard` using the `AdaptiveGrid`/`LayoutBuilder` primitive from `feature/design-system`
+- [x] Build `CreatePostPage`: form, `image_picker`, multipart upload via `dio` `FormData` with progress
+- [x] Render images with `CachedNetworkImage` (placeholder and error state)
+- [x] Add a `Hero` transition between the feed thumbnail and the detail image
+- [x] Animate `PostCard` appearance with `AnimatedOpacity`/`AnimatedSlide`
+- [x] Business rule: only the author can edit/delete their post; hide those actions otherwise
+- [x] Unit test: `CreatePostUseCase` rejects empty title/content before hitting the repository
+- [x] Widget test: `FeedPage` renders one `PostCard` per item from a mocked response; delete button hidden for non-authors
 
 ---
 

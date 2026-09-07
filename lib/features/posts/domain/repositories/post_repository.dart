@@ -34,10 +34,21 @@ abstract class PostRepository {
   ///
   /// `File` is used directly for `image`, matching README's
   /// `createPost(Post post, {File? image})` reference example.
+  ///
+  /// [onSendProgress] is forwarded down to `PostRemoteDatasource.createPost`
+  /// and, from there, straight to `dio`'s own `onSendProgress` parameter,
+  /// following the exact precedent `UserRepository.uploadAvatar` set for the
+  /// avatar upload: a caller such as `CreatePostPage` can drive a progress
+  /// indicator while the multipart body streams. Its signature is written
+  /// out by hand rather than importing `dio`'s `ProgressCallback` typedef,
+  /// since `domain/` never imports `dio`. It only ever fires on the remote
+  /// path; a create made while offline (see `PostRepositoryImpl`'s class
+  /// doc) has no request in flight to report progress on.
   Future<Either<Failure, Post>> createPost({
     required String title,
     required String content,
     File? image,
+    void Function(int sent, int total)? onSendProgress,
   });
 
   /// Calls `PATCH /posts/:id` with `{ title?, content? }`.

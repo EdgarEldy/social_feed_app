@@ -15,6 +15,9 @@ import '../../../comments/domain/usecases/get_comments_usecase.dart';
 import '../../../comments/presentation/stores/comments_store.dart';
 import '../../../comments/presentation/widgets/comment_input.dart';
 import '../../../comments/presentation/widgets/comments_section.dart';
+import '../../../likes/domain/usecases/toggle_like_usecase.dart';
+import '../../../likes/presentation/stores/like_store.dart';
+import '../../../likes/presentation/widgets/like_button.dart';
 import '../../domain/entities/post.dart';
 import '../stores/posts_store.dart';
 
@@ -414,18 +417,32 @@ class _PostDetailImage extends StatelessWidget {
   }
 }
 
-/// The read-only comment/like counts shown at the bottom of the detail page,
-/// just above the real `CommentsSection` underneath it.
+/// The comment count and the tappable [LikeButton] shown at the bottom of
+/// the detail page, just above the real `CommentsSection` underneath it.
 ///
-/// Purely decorative numbers, the same as [PostCard]'s own stats row: the
-/// counts themselves come from [Post.commentsCount]/[Post.likesCount], not
-/// from `CommentsSection`'s own loaded thread length, so they stay accurate
-/// even before any page of comments has loaded. `feature/likes` replaces the
-/// heart icon with a tappable `LikeButton`.
-class _PostDetailStats extends StatelessWidget {
+/// The comment count is a plain read-only number, the same as [PostCard]'s
+/// own stats row, since [Post.commentsCount] stays accurate even before any
+/// page of comments has loaded, and `CommentsSection`'s own loaded thread
+/// length is a separate, paginated concern. The like half is a real
+/// [LikeButton], backed by a [LikeStore] constructed once per [post] (see
+/// [_PostDetailStatsState]) and seeded from [post]'s own
+/// [Post.isLikedByMe]/[Post.likesCount], independent of whatever [LikeStore]
+/// a [PostCard] for the same post builds for the feed.
+class _PostDetailStats extends StatefulWidget {
   const _PostDetailStats({required this.post});
 
   final Post post;
+
+  @override
+  State<_PostDetailStats> createState() => _PostDetailStatsState();
+}
+
+class _PostDetailStatsState extends State<_PostDetailStats> {
+  late final LikeStore _likeStore = LikeStore(
+    isLiked: widget.post.isLikedByMe,
+    likesCount: widget.post.likesCount,
+    toggleLikeUseCase: getIt<ToggleLikeUseCase>(),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -434,11 +451,9 @@ class _PostDetailStats extends StatelessWidget {
       children: [
         Icon(Icons.mode_comment_outlined, size: AppDimens.spacingMd),
         const SizedBox(width: AppDimens.spacingXs),
-        Text('${post.commentsCount}', style: theme.textTheme.bodyMedium),
+        Text('${widget.post.commentsCount}', style: theme.textTheme.bodyMedium),
         const SizedBox(width: AppDimens.spacingLg),
-        Icon(Icons.favorite_border, size: AppDimens.spacingMd),
-        const SizedBox(width: AppDimens.spacingXs),
-        Text('${post.likesCount}', style: theme.textTheme.bodyMedium),
+        LikeButton(store: _likeStore, postId: widget.post.id),
       ],
     );
   }

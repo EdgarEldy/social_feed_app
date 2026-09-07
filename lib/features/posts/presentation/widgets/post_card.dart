@@ -8,6 +8,9 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../auth/presentation/stores/auth_store.dart';
+import '../../../likes/domain/usecases/toggle_like_usecase.dart';
+import '../../../likes/presentation/stores/like_store.dart';
+import '../../../likes/presentation/widgets/like_button.dart';
 import '../../domain/entities/post.dart';
 import '../stores/posts_store.dart';
 
@@ -256,14 +259,30 @@ class _PostImage extends StatelessWidget {
   }
 }
 
-/// The read-only comment/like counts shown at the bottom of a [PostCard].
+/// The comment count and the tappable [LikeButton] shown at the bottom of a
+/// [PostCard].
 ///
-/// Purely decorative numbers for this branch; tapping to comment or like
-/// arrives with `feature/comments`/`feature/likes`.
-class _PostStats extends StatelessWidget {
+/// The comment count stays a plain read-only number; tapping into the
+/// comment thread itself only happens from `PostDetailPage`. The like half
+/// is a real [LikeButton] as of `feature/likes`, backed by a [LikeStore]
+/// constructed once per card instance (see [_PostStatsState]) and seeded
+/// from this card's own [Post.isLikedByMe]/[Post.likesCount], independent of
+/// whatever [LikeStore] `PostDetailPage` builds for the same post.
+class _PostStats extends StatefulWidget {
   const _PostStats({required this.post});
 
   final Post post;
+
+  @override
+  State<_PostStats> createState() => _PostStatsState();
+}
+
+class _PostStatsState extends State<_PostStats> {
+  late final LikeStore _likeStore = LikeStore(
+    isLiked: widget.post.isLikedByMe,
+    likesCount: widget.post.likesCount,
+    toggleLikeUseCase: getIt<ToggleLikeUseCase>(),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -272,11 +291,9 @@ class _PostStats extends StatelessWidget {
       children: [
         Icon(Icons.mode_comment_outlined, size: AppDimens.spacingMd),
         const SizedBox(width: AppDimens.spacingXs),
-        Text('${post.commentsCount}', style: theme.textTheme.bodySmall),
+        Text('${widget.post.commentsCount}', style: theme.textTheme.bodySmall),
         const SizedBox(width: AppDimens.spacingMd),
-        Icon(Icons.favorite_border, size: AppDimens.spacingMd),
-        const SizedBox(width: AppDimens.spacingXs),
-        Text('${post.likesCount}', style: theme.textTheme.bodySmall),
+        LikeButton(store: _likeStore, postId: widget.post.id),
       ],
     );
   }

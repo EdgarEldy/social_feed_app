@@ -184,7 +184,8 @@ List<Widget> _buildContentSlivers(PostsStore store) {
         child: AdaptiveGrid(
           runSpacing: AppDimens.spacingSm,
           children: [
-            for (final post in store.posts) PostCard(post: post),
+            for (final post in store.posts)
+              PostCard(key: ValueKey(post.id), post: post),
           ],
         ),
       ),

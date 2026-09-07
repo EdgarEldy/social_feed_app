@@ -36,6 +36,10 @@ import '../../features/comments/domain/repositories/comment_repository.dart';
 import '../../features/comments/domain/usecases/add_comment_usecase.dart';
 import '../../features/comments/domain/usecases/delete_comment_usecase.dart';
 import '../../features/comments/domain/usecases/get_comments_usecase.dart';
+import '../../features/likes/data/datasources/like_remote_datasource.dart';
+import '../../features/likes/data/repositories/like_repository_impl.dart';
+import '../../features/likes/domain/repositories/like_repository.dart';
+import '../../features/likes/domain/usecases/toggle_like_usecase.dart';
 import '../database/app_database.dart';
 import '../network/dio_client.dart';
 import '../network_info/connectivity_store.dart';
@@ -314,6 +318,23 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
   );
   getIt.registerLazySingleton<DeleteCommentUseCase>(
     () => DeleteCommentUseCase(commentRepository: getIt<CommentRepository>()),
+  );
+
+  // feature/likes's remote datasource and repository, registered right
+  // after comments' own registrations. There is no local datasource here,
+  // same reasoning as UserRepositoryImpl: likes are live-only for this
+  // branch's scope, no cache fallback and no pending_writes queueing.
+  getIt.registerLazySingleton<LikeRemoteDatasource>(
+    () => LikeRemoteDatasourceImpl(getIt<Dio>()),
+  );
+  getIt.registerLazySingleton<LikeRepository>(
+    () => LikeRepositoryImpl(getIt<LikeRemoteDatasource>()),
+  );
+
+  // ToggleLikeUseCase is a thin pass-through, same as most other usecases
+  // registered above; see its class doc.
+  getIt.registerLazySingleton<ToggleLikeUseCase>(
+    () => ToggleLikeUseCase(likeRepository: getIt<LikeRepository>()),
   );
 
   // core/sync/sync_service.dart's SyncService now has a real

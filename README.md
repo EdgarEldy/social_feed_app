@@ -784,7 +784,7 @@ App-wide accessibility and i18n pass, full test suite, flavors, and the release 
 - [x] Golden tests for `PostCard` and `LikeButton` in light and dark theme
 - [x] One end-to-end `integration_test`: sign up, create a post, like it, comment on it
 - [x] Configure `development`/`production` flavors
-- [ ] Generate app icons and splash screen (`flutter_launcher_icons`, `flutter_native_splash`)
+- [x] Generate app icons and splash screen (`flutter_launcher_icons`, `flutter_native_splash`)
 - [ ] Extend `ci.yml`: analyze -> test -> build APK/IPA on every PR to `master`
 - [ ] Document Android keystore signing and iOS certificate setup
 

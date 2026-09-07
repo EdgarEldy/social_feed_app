@@ -265,12 +265,17 @@ class PushNotificationService {
             ? null
             : Options(headers: {'Authorization': 'Bearer $accessToken'}),
       );
+      // Only forgotten once the server actually confirms it: clearing this
+      // unconditionally (e.g. in a `finally`) would mean a failed call
+      // (offline sign-out, a transient 5xx) silently gives up on ever
+      // deregistering this token, leaving it registered server-side with
+      // no way for a later retry in this same session to know it still
+      // needs to.
+      _registeredToken = null;
     } catch (_) {
       // Best-effort, same reasoning as _registerToken above: this is
       // documented on the class as never throwing, since AuthStore.signOut
       // awaits it with no guard of its own beyond that contract.
-    } finally {
-      _registeredToken = null;
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../app/router/app_router.dart';
 import '../../app/router/auth_refresh_listenable.dart';
@@ -8,6 +9,7 @@ import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/usecases/sign_in_usecase.dart';
+import '../../features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 import '../../features/auth/domain/usecases/sign_out_usecase.dart';
 import '../../features/auth/domain/usecases/sign_up_usecase.dart';
 import '../../features/auth/presentation/stores/auth_store.dart';
@@ -162,19 +164,40 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
     ),
   );
 
+  // SignInWithGoogleUseCase (feature/integrations, bonus) follows the exact
+  // same shape as SignInUseCase above: it persists the token pair returned
+  // by POST /auth/google via SecureTokenStorage and hands AuthStore back a
+  // plain User.
+  getIt.registerLazySingleton<SignInWithGoogleUseCase>(
+    () => SignInWithGoogleUseCase(
+      authRepository: getIt<AuthRepository>(),
+      tokenStorage: getIt<SecureTokenStorage>(),
+    ),
+  );
+
+  // GoogleSignIn.instance is already a process-wide singleton (its
+  // constructor is private, see the package's own class doc), so this just
+  // registers that existing instance with get_it rather than constructing a
+  // new one, the same "one shared instance resolved through getIt<T>()"
+  // guarantee every other registration in this function provides.
+  getIt.registerLazySingleton<GoogleSignIn>(() => GoogleSignIn.instance);
+
   // AuthStore is the last piece of the auth dependency chain: it depends on
-  // all three usecases above plus SecureTokenStorage directly, for
-  // restoreSession's one-shot read of the stored access token (see the
-  // store's class doc for why it only reads, never calls a repository
-  // method, to restore a session). registerLazySingleton keeps this a
-  // single shared instance, resolved both by the widgets that build the
-  // login/register forms and by the go_router redirect guard.
+  // all four usecases above plus SecureTokenStorage and GoogleSignIn
+  // directly, for restoreSession's one-shot read of the stored access token
+  // and for driving the native Google account picker (see the store's class
+  // doc for why it only reads, never calls a repository method, to restore
+  // a session). registerLazySingleton keeps this a single shared instance,
+  // resolved both by the widgets that build the login/register forms and by
+  // the go_router redirect guard.
   getIt.registerLazySingleton<AuthStore>(
     () => AuthStore(
       signUpUseCase: getIt<SignUpUseCase>(),
       signInUseCase: getIt<SignInUseCase>(),
+      signInWithGoogleUseCase: getIt<SignInWithGoogleUseCase>(),
       signOutUseCase: getIt<SignOutUseCase>(),
       tokenStorage: getIt<SecureTokenStorage>(),
+      googleSignIn: getIt<GoogleSignIn>(),
     ),
   );
 

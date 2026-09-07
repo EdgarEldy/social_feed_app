@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../app/theme/app_dimens.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../domain/usecases/upload_avatar_usecase.dart';
 
 /// A tappable avatar that opens the camera/gallery picker, uploads the
@@ -92,12 +93,13 @@ class _AvatarPickerState extends State<AvatarPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Semantics(
           button: true,
-          label: 'Change avatar',
+          label: l10n.changeAvatarSemanticLabel,
           child: GestureDetector(
             onTap: _isUploading ? null : _pickAndUpload,
             child: _AvatarPreview(
@@ -112,7 +114,7 @@ class _AvatarPickerState extends State<AvatarPicker> {
             width: AppDimens.spacingXxl * 2,
             child: LinearProgressIndicator(
               value: _progress,
-              semanticsLabel: 'Avatar upload progress',
+              semanticsLabel: l10n.avatarUploadProgressLabel,
               semanticsValue: '${(_progress * 100).round()}%',
             ),
           ),
@@ -134,6 +136,7 @@ class _AvatarPickerState extends State<AvatarPicker> {
 /// Shows a bottom sheet letting the user pick a camera photo or a gallery
 /// image, resolving to the chosen [ImageSource], or `null` if dismissed.
 Future<ImageSource?> _showSourceSheet(BuildContext context) {
+  final l10n = AppLocalizations.of(context)!;
   return showModalBottomSheet<ImageSource>(
     context: context,
     builder: (sheetContext) {
@@ -143,12 +146,12 @@ Future<ImageSource?> _showSourceSheet(BuildContext context) {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera),
-              title: const Text('Take a photo'),
+              title: Text(l10n.takePhotoLabel),
               onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from gallery'),
+              title: Text(l10n.chooseFromGalleryLabel),
               onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
             ),
           ],
@@ -181,8 +184,8 @@ class _AvatarPreview extends StatelessWidget {
               : null,
         ),
         if (isUploading)
-          const CircularProgressIndicator(
-            semanticsLabel: 'Uploading avatar',
+          CircularProgressIndicator(
+            semanticsLabel: AppLocalizations.of(context)!.uploadingAvatarLabel,
           ),
         Positioned(
           bottom: 0,

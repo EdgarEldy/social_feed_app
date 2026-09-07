@@ -1,7 +1,9 @@
 # Gates every push and pull request against develop/master and every
 # feature/** branch: installs Flutter, then runs flutter analyze followed
 # by flutter test. A red check here blocks merging per the branch workflow
-# in README.md.
+# in README.md. Pull requests targeting master additionally build a release
+# APK and an unsigned iOS app, so the final develop -> master PR proves both
+# platforms build cleanly.
 name: CI
 
 "on":
@@ -47,3 +49,75 @@ jobs:
 
       - name: Test
         run: flutter test
+
+  build-android:
+    name: Build Android APK
+    needs: analyze-and-test
+    runs-on: ubuntu-latest
+    # Only builds on pull requests targeting master, per the release checklist
+    # in README.md. PRs into develop/feature branches skip this job entirely.
+    if: github.event_name == 'pull_request' && github.base_ref == 'master'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: 'stable'
+          cache: true
+
+      - name: Create .env from example
+        run: cp .env.example .env
+
+      - name: Create flavor .env files from example
+        run: |
+          cp .env.example .env.development
+          cp .env.example .env.production
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        # Builds without a configured release keystore, so Flutter falls
+        # back to debug-signing the release build. That is fine for CI
+        # verification purposes; task 9 documents adding a real keystore.
+        run: flutter build apk --release
+
+  build-ios:
+    name: Build iOS app
+    needs: analyze-and-test
+    runs-on: macos-latest
+    # Only builds on pull requests targeting master, per the release checklist
+    # in README.md. PRs into develop/feature branches skip this job entirely.
+    if: github.event_name == 'pull_request' && github.base_ref == 'master'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: 'stable'
+          cache: true
+
+      - name: Create .env from example
+        run: cp .env.example .env
+
+      - name: Create flavor .env files from example
+        run: |
+          cp .env.example .env.development
+          cp .env.example .env.production
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS app
+        # No Apple Developer certificate or provisioning profile exists in
+        # this project yet, so a signed .ipa via `flutter build ipa` isn't
+        # possible. This builds the unsigned .app to prove the iOS side
+        # compiles and archives cleanly. Task 9 documents adding real
+        # signing credentials once they exist.
+        run: flutter build ios --release --no-codesign

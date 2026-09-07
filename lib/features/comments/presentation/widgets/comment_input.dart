@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_dimens.dart';
+import '../../../../core/l10n/app_localizations.dart';
 
 /// A text field plus a send button, used inside the `showModalBottomSheet`
 /// `PostDetailPage` opens to add a comment.
@@ -79,6 +80,7 @@ class _CommentInputState extends State<CommentInput> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -91,9 +93,9 @@ class _CommentInputState extends State<CommentInput> {
             maxLines: 4,
             textInputAction: TextInputAction.send,
             onSubmitted: (_) => _handleSubmit(),
-            decoration: const InputDecoration(
-              hintText: 'Add a comment...',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              hintText: l10n.addCommentHint,
+              border: const OutlineInputBorder(),
             ),
           ),
         ),
@@ -110,7 +112,7 @@ class _CommentInputState extends State<CommentInput> {
             : IconButton(
                 onPressed: _handleSubmit,
                 icon: const Icon(Icons.send),
-                tooltip: 'Send comment',
+                tooltip: l10n.sendCommentTooltip,
               ),
       ],
     );

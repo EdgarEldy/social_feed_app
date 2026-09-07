@@ -231,25 +231,29 @@ class _PostImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Hero(
-      tag: 'post-image-${post.id}',
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        child: CachedNetworkImage(
-          imageUrl: imageUrl,
-          height: _postImageHeight,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => const SizedBox(
+    return Semantics(
+      image: true,
+      label: 'Photo attached to "${post.title}"',
+      child: Hero(
+        tag: 'post-image-${post.id}',
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
             height: _postImageHeight,
-            child: LoadingIndicator(semanticsLabel: 'Loading post image'),
-          ),
-          errorWidget: (context, url, error) => SizedBox(
-            height: _postImageHeight,
-            child: Center(
-              child: Icon(
-                Icons.broken_image_outlined,
-                color: Theme.of(context).colorScheme.error,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => const SizedBox(
+              height: _postImageHeight,
+              child: LoadingIndicator(semanticsLabel: 'Loading post image'),
+            ),
+            errorWidget: (context, url, error) => SizedBox(
+              height: _postImageHeight,
+              child: Center(
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: Theme.of(context).colorScheme.error,
+                ),
               ),
             ),
           ),
@@ -289,9 +293,21 @@ class _PostStatsState extends State<_PostStats> {
     final theme = Theme.of(context);
     return Row(
       children: [
-        Icon(Icons.mode_comment_outlined, size: AppDimens.spacingMd),
-        const SizedBox(width: AppDimens.spacingXs),
-        Text('${widget.post.commentsCount}', style: theme.textTheme.bodySmall),
+        Semantics(
+          label: '${widget.post.commentsCount} comments',
+          excludeSemantics: true,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.mode_comment_outlined, size: AppDimens.spacingMd),
+              const SizedBox(width: AppDimens.spacingXs),
+              Text(
+                '${widget.post.commentsCount}',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
         const SizedBox(width: AppDimens.spacingMd),
         LikeButton(store: _likeStore, postId: widget.post.id),
       ],

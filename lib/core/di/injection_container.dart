@@ -28,6 +28,14 @@ import '../../features/posts/domain/usecases/get_post_usecase.dart';
 import '../../features/posts/domain/usecases/get_posts_usecase.dart';
 import '../../features/posts/domain/usecases/update_post_usecase.dart';
 import '../../features/posts/presentation/stores/posts_store.dart';
+import '../../features/comments/data/datasources/comment_local_datasource.dart';
+import '../../features/comments/data/datasources/comment_remote_datasource.dart';
+import '../../features/comments/data/repositories/comment_repository_impl.dart';
+import '../../features/comments/data/sync/comment_pending_write_replayer.dart';
+import '../../features/comments/domain/repositories/comment_repository.dart';
+import '../../features/comments/domain/usecases/add_comment_usecase.dart';
+import '../../features/comments/domain/usecases/delete_comment_usecase.dart';
+import '../../features/comments/domain/usecases/get_comments_usecase.dart';
 import '../database/app_database.dart';
 import '../network/dio_client.dart';
 import '../network_info/connectivity_store.dart';
@@ -258,11 +266,63 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
     ),
   );
 
+  // feature/comments's remote and local datasources, then the repository
+  // that coordinates them, in the same datasource-then-repository order as
+  // posts above. CommentLocalDatasource is registered on its own (not just
+  // reached through CommentRepository) for the same reason as
+  // PostLocalDatasource: the sync replayer below also needs direct access
+  // to it, independent of the repository.
+  getIt.registerLazySingleton<CommentRemoteDatasource>(
+    () => CommentRemoteDatasourceImpl(getIt<Dio>()),
+  );
+  getIt.registerLazySingleton<CommentLocalDatasource>(
+    () => CommentLocalDatasource(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<CommentRepository>(
+    () => CommentRepositoryImpl(
+      remoteDatasource: getIt<CommentRemoteDatasource>(),
+      localDatasource: getIt<CommentLocalDatasource>(),
+      appDatabase: getIt<AppDatabase>(),
+      // Resolved lazily, only when an offline addComment() actually needs
+      // it, the exact same "closure built at the composition root" pattern
+      // PostRepositoryImpl's currentAuthor uses above.
+      currentAuthor: () {
+        final user = getIt<AuthStore>().currentUser;
+        if (user == null) {
+          return null;
+        }
+        return (
+          id: user.id,
+          displayName: user.displayName,
+          photoUrl: user.photoUrl,
+        );
+      },
+    ),
+  );
+
+  // feature/comments's three usecases, registered right after
+  // CommentRepository, in the same order the Tasks list lists them.
+  // GetCommentsUseCase/DeleteCommentUseCase are thin pass-throughs, same as
+  // feature/posts's own usecases above. AddCommentUseCase is the one
+  // exception, validating content is non-empty before ever calling the
+  // repository; see its class doc.
+  getIt.registerLazySingleton<GetCommentsUseCase>(
+    () => GetCommentsUseCase(commentRepository: getIt<CommentRepository>()),
+  );
+  getIt.registerLazySingleton<AddCommentUseCase>(
+    () => AddCommentUseCase(commentRepository: getIt<CommentRepository>()),
+  );
+  getIt.registerLazySingleton<DeleteCommentUseCase>(
+    () => DeleteCommentUseCase(commentRepository: getIt<CommentRepository>()),
+  );
+
   // core/sync/sync_service.dart's SyncService now has a real
   // PendingWriteReplayer to run: feature/posts's own replayer, wrapped in
   // CompositePendingWriteReplayer so a later feature/comments branch can
   // register its own entity-scoped replayer alongside this one without
-  // touching either this registration or feature/posts's replayer.
+  // touching either this registration or feature/posts's replayer. Adding
+  // feature/comments's own replayer here is exactly the "one line addition"
+  // CompositePendingWriteReplayer's own class doc describes.
   getIt.registerLazySingleton<SyncService>(
     () => SyncService(
       appDatabase: getIt<AppDatabase>(),
@@ -271,6 +331,10 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
         buildPostPendingWriteReplayer(
           remoteDatasource: getIt<PostRemoteDatasource>(),
           localDatasource: getIt<PostLocalDatasource>(),
+        ),
+        buildCommentPendingWriteReplayer(
+          remoteDatasource: getIt<CommentRemoteDatasource>(),
+          localDatasource: getIt<CommentLocalDatasource>(),
         ),
       ]).call,
     )..start(),

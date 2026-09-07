@@ -206,7 +206,8 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
       // getIt<PushNotificationService>() here eagerly would re-enter
       // AuthStore's own not-yet-finished construction; see
       // AuthStore's _deregisterPushToken doc for the full explanation.
-      deregisterPushToken: () => getIt<PushNotificationService>().deregister(),
+      deregisterPushToken: ({String? accessToken}) =>
+          getIt<PushNotificationService>().deregister(accessToken: accessToken),
     ),
   );
 
@@ -424,5 +425,6 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
 /// which point `getIt<AuthStore>()` resolves fine.
 Dio _defaultDioFactory() => DioClient.create(
   tokenStorage: getIt<SecureTokenStorage>(),
-  onSessionExpired: () => getIt<AuthStore>().forceSignOut(),
+  onSessionExpired: (expiredAccessToken) =>
+      getIt<AuthStore>().forceSignOut(expiredAccessToken),
 );

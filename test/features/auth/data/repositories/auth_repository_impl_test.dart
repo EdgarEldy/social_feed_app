@@ -133,6 +133,48 @@ void main() {
     });
   });
 
+  group('signInWithGoogle', () {
+    test('maps a successful response to an AuthSession wrapping the domain User', () async {
+      when(
+        () => remoteDatasource.signInWithGoogle('google-id-token'),
+      ).thenAnswer(
+        (_) async => Right((
+          user: userModel,
+          accessToken: 'access-123',
+          refreshToken: 'refresh-456',
+        )),
+      );
+
+      final result = await repository.signInWithGoogle('google-id-token');
+
+      expect(
+        result,
+        Right<Failure, AuthSession>(
+          AuthSession(
+            user: userModel.toEntity(),
+            accessToken: 'access-123',
+            refreshToken: 'refresh-456',
+          ),
+        ),
+      );
+    });
+
+    test('propagates a ServerFailure from the datasource unchanged when the email already exists under a password-based account', () async {
+      when(
+        () => remoteDatasource.signInWithGoogle('google-id-token'),
+      ).thenAnswer(
+        (_) async => const Left(ServerFailure('An account with this email already exists.', statusCode: 409)),
+      );
+
+      final result = await repository.signInWithGoogle('google-id-token');
+
+      expect(
+        result,
+        const Left<Failure, AuthSession>(ServerFailure('An account with this email already exists.', statusCode: 409)),
+      );
+    });
+  });
+
   group('refresh', () {
     test('forwards the new access token straight from the datasource', () async {
       when(() => remoteDatasource.refresh('refresh-456')).thenAnswer((_) async => const Right('access-789'));

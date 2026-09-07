@@ -48,6 +48,12 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, AuthSession>> signInWithGoogle(String idToken) async {
+    final result = await _remoteDatasource.signInWithGoogle(idToken);
+    return result.map(_toAuthSession);
+  }
+
+  @override
   Future<Either<Failure, String>> refresh(String refreshToken) {
     return _remoteDatasource.refresh(refreshToken);
   }

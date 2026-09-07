@@ -18,9 +18,6 @@ import '../entities/auth_session.dart';
 /// `data/repositories/auth_repository_impl.dart` is a pure HTTP-boundary
 /// translation with no dependency on token storage at all.
 ///
-/// `POST /auth/google` is deliberately not declared here: it belongs to the
-/// `feature/integrations` bonus branch, which is expected to extend this
-/// interface (or add a sibling method) once that branch starts.
 abstract class AuthRepository {
   /// Calls `POST /auth/register` with `{ email, password, displayName }`.
   ///
@@ -42,6 +39,17 @@ abstract class AuthRepository {
     required String email,
     required String password,
   });
+
+  /// Calls `POST /auth/google` with `{ idToken }`.
+  ///
+  /// Returns the same `AuthSession` shape as [register] and [login], per
+  /// the API Contract; the caller decides how to persist the tokens, same
+  /// as those two methods. If the email is already registered under a
+  /// password-based account, whatever error message the server sends back
+  /// for that conflict passes straight through as a `Left`, unchanged, the
+  /// same way every other auth failure already does; there is no special
+  /// merge logic here.
+  Future<Either<Failure, AuthSession>> signInWithGoogle(String idToken);
 
   /// Calls `POST /auth/refresh` with `{ refreshToken }`.
   ///

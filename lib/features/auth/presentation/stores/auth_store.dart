@@ -267,6 +267,12 @@ abstract class _AuthStore with Store {
       if (e.code != GoogleSignInExceptionCode.canceled) {
         lastError = ServerFailure(e.description ?? 'Google sign-in failed.');
       }
+    } catch (e) {
+      // Anything other than a GoogleSignInException (a platform channel
+      // error, a network failure reaching Google, ...) would otherwise
+      // escape this method uncaught, leaving lastError unset and the user
+      // with no feedback at all beyond a silently-reset isSubmitting.
+      lastError = ServerFailure('Google sign-in failed: $e');
     } finally {
       isSubmitting = false;
     }
@@ -284,17 +290,23 @@ abstract class _AuthStore with Store {
   Future<void> signOut() async {
     lastError = null;
     isSubmitting = true;
-    // Awaited, and deliberately before _signOutUseCase() below: DELETE
-    // /devices/:pushToken is an authenticated endpoint, and SignOutUseCase
-    // unconditionally clears the stored access token before returning, so
-    // deregistering has to happen while that token is still there for
-    // AuthInterceptor to attach. It cannot fail this method or leave the
-    // user stuck, though: PushNotificationService.deregister() swallows its
-    // own failures, so this is best-effort despite being awaited.
-    await _deregisterPushToken?.call();
-    final result = await _signOutUseCase();
-    result.match((failure) => lastError = failure, (_) => _clearSession());
-    isSubmitting = false;
+    try {
+      // Awaited, and deliberately before _signOutUseCase() below: DELETE
+      // /devices/:pushToken is an authenticated endpoint, and
+      // SignOutUseCase unconditionally clears the stored access token
+      // before returning, so deregistering has to happen while that token
+      // is still there for AuthInterceptor to attach.
+      // PushNotificationService.deregister() is documented as never
+      // throwing, so this should already be best-effort in practice; the
+      // surrounding try/finally is a defensive backstop so a bug there (or
+      // in whatever closure a test/future caller supplies) cannot leave
+      // isSubmitting stuck true and the user unable to sign out.
+      await _deregisterPushToken?.call();
+      final result = await _signOutUseCase();
+      result.match((failure) => lastError = failure, (_) => _clearSession());
+    } finally {
+      isSubmitting = false;
+    }
   }
 
   /// Clears the in-memory session without touching stored tokens or calling

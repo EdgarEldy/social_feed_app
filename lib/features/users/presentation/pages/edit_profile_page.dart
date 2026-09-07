@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_dimens.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../auth/domain/entities/user.dart';
@@ -91,13 +92,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
       builder: (_) {
         final currentUser = _authStore.currentUser;
         if (currentUser == null) {
+          final l10n = AppLocalizations.of(context)!;
           return Scaffold(
-            appBar: AppBar(title: const Text('Edit profile')),
-            body: const ErrorView(
-              message:
-                  'Your profile has not loaded yet. Sign out and back in '
-                  'to refresh it.',
-            ),
+            appBar: AppBar(title: Text(l10n.editProfileTitle)),
+            body: ErrorView(message: l10n.profileNotLoadedMessage),
           );
         }
         _prefillOnce(currentUser);
@@ -143,8 +141,9 @@ class _EditProfileForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit profile')),
+      appBar: AppBar(title: Text(l10n.editProfileTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppDimens.spacingLg),
@@ -164,8 +163,10 @@ class _EditProfileForm extends StatelessWidget {
                 TextFormField(
                   controller: displayNameController,
                   textInputAction: TextInputAction.done,
-                  decoration: const InputDecoration(labelText: 'Display name'),
-                  validator: AuthValidators.validateDisplayName,
+                  decoration:
+                      InputDecoration(labelText: l10n.displayNameFieldLabel),
+                  validator: (value) =>
+                      AuthValidators.validateDisplayName(context, value),
                   onFieldSubmitted: (_) => onSubmit(),
                 ),
                 if (error != null) ...[
@@ -177,7 +178,7 @@ class _EditProfileForm extends StatelessWidget {
                 ],
                 const SizedBox(height: AppDimens.spacingLg),
                 AppButton(
-                  label: isSubmitting ? 'Saving...' : 'Save',
+                  label: isSubmitting ? l10n.savingButtonLabel : l10n.saveButtonLabel,
                   onPressed: isSubmitting ? null : onSubmit,
                 ),
               ],

@@ -49,6 +49,10 @@
   "@creatingAccountButtonLabel": {
     "description": "Label shown on the sign-up button while the request is in flight."
   },
+  "continueWithGoogleButtonLabel": "Continue with Google",
+  "@continueWithGoogleButtonLabel": {
+    "description": "Label for the secondary button on LoginPage that starts the Google sign-in flow."
+  },
   "noAccountPrompt": "Don't have an account? Sign up",
   "@noAccountPrompt": {
     "description": "Link on LoginPage inviting a user without an account to register."

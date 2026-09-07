@@ -13,6 +13,7 @@
   "signingInButtonLabel": "Connexion en cours...",
   "signUpButtonLabel": "S'inscrire",
   "creatingAccountButtonLabel": "Création du compte...",
+  "continueWithGoogleButtonLabel": "Continuer avec Google",
   "noAccountPrompt": "Vous n'avez pas de compte ? Inscrivez-vous",
   "haveAccountPrompt": "Vous avez déjà un compte ? Connectez-vous",
   "emailRequiredError": "L'e-mail est requis.",

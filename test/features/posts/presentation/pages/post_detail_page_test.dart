@@ -5,12 +5,17 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:social_feed_app/core/di/injection_container.dart';
 import 'package:social_feed_app/core/l10n/app_localizations.dart';
+import 'package:social_feed_app/core/pagination/paginated_result.dart';
 import 'package:social_feed_app/core/storage/secure_token_storage.dart';
 import 'package:social_feed_app/features/auth/domain/entities/user.dart';
 import 'package:social_feed_app/features/auth/domain/usecases/sign_in_usecase.dart';
 import 'package:social_feed_app/features/auth/domain/usecases/sign_out_usecase.dart';
 import 'package:social_feed_app/features/auth/domain/usecases/sign_up_usecase.dart';
 import 'package:social_feed_app/features/auth/presentation/stores/auth_store.dart';
+import 'package:social_feed_app/features/comments/domain/entities/comment.dart';
+import 'package:social_feed_app/features/comments/domain/usecases/add_comment_usecase.dart';
+import 'package:social_feed_app/features/comments/domain/usecases/delete_comment_usecase.dart';
+import 'package:social_feed_app/features/comments/domain/usecases/get_comments_usecase.dart';
 import 'package:social_feed_app/features/posts/domain/entities/post.dart';
 import 'package:social_feed_app/features/posts/domain/usecases/create_post_usecase.dart';
 import 'package:social_feed_app/features/posts/domain/usecases/delete_post_usecase.dart';
@@ -37,6 +42,12 @@ class _MockSignUpUseCase extends Mock implements SignUpUseCase {}
 class _MockSignOutUseCase extends Mock implements SignOutUseCase {}
 
 class _MockSecureTokenStorage extends Mock implements SecureTokenStorage {}
+
+class _MockGetCommentsUseCase extends Mock implements GetCommentsUseCase {}
+
+class _MockAddCommentUseCase extends Mock implements AddCommentUseCase {}
+
+class _MockDeleteCommentUseCase extends Mock implements DeleteCommentUseCase {}
 
 void main() {
   late _MockUpdatePostUseCase updatePostUseCase;
@@ -81,6 +92,23 @@ void main() {
     );
     authStore.updateCurrentUser(signedInUser);
     getIt.registerSingleton<AuthStore>(authStore);
+
+    // PostDetailPage now builds its own CommentsStore straight from get_it
+    // (see its class doc), pulling in the comments feature's three
+    // usecases. They are not central to what this file exercises, so a
+    // plain empty-page response is enough to let the page build without a
+    // "not registered" GetIt exception.
+    final getCommentsUseCase = _MockGetCommentsUseCase();
+    when(
+      () => getCommentsUseCase.call(
+        postId: any(named: 'postId'),
+        cursor: any(named: 'cursor'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => const Right(PaginatedResult<Comment>(items: [], nextCursor: null)));
+    getIt.registerLazySingleton<GetCommentsUseCase>(() => getCommentsUseCase);
+    getIt.registerLazySingleton<AddCommentUseCase>(() => _MockAddCommentUseCase());
+    getIt.registerLazySingleton<DeleteCommentUseCase>(() => _MockDeleteCommentUseCase());
   });
 
   tearDown(() async {

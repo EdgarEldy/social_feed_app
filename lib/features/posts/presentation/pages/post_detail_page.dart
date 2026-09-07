@@ -28,12 +28,20 @@ const double _postDetailImageHeight = 260;
 ///
 /// [PostCard] already holds the full [Post] it renders, so tapping it pushes
 /// this route with that [Post] attached as `extra`, avoiding a redundant
-/// `GET /posts/:id` round trip; that is the [initialPost] case. A route
-/// reached without that `extra` (a deep link, a cold start restoring this
-/// route directly) has no such in-memory [Post], so this page instead calls
+/// `GET /posts/:id` round trip; that is the [initialPost] case. [initialPost]
+/// only seeds the very first frame though: [build] re-reads the same post by
+/// id from [PostsStore.posts] inside an [Observer] on every rebuild, falling
+/// back to [initialPost] if it is not (or no longer) present there, so an
+/// edit made from this page's own author menu (which writes through to
+/// [PostsStore.posts], see [PostsStore.updatePost]) shows up immediately
+/// instead of only after leaving and returning to the page. A route reached
+/// without that `extra` (a deep link, a cold start restoring this route
+/// directly) has no such in-memory [Post], so this page instead calls
 /// [PostsStore.loadPost] and renders its loading/error/data observables
 /// through an [Observer], the same fallback shape `_EditPostRoute` in
-/// `app_router.dart` uses for the edit route.
+/// `app_router.dart` used to use for the edit route before that route moved
+/// to its own local, per-instance state to avoid colliding with this page's
+/// use of the same [PostsStore.currentPost] slot.
 ///
 /// ## What is out of scope on this branch
 ///
@@ -87,9 +95,25 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Widget build(BuildContext context) {
     final initialPost = widget.initialPost;
     if (initialPost != null) {
-      return _PostDetailScaffold(
-        post: initialPost,
-        onDelete: () => _handleDelete(initialPost),
+      return Observer(
+        builder: (_) {
+          // Re-read the post from the feed list on every rebuild instead of
+          // permanently rendering the constructor's initialPost, so an edit
+          // made from this same page's own author menu (which updates
+          // PostsStore.posts, see updatePost's doc) is reflected without
+          // leaving and re-entering the page. Falls back to initialPost when
+          // it is not (or no longer) in posts, e.g. a post loaded from a
+          // cache-fallback page that never made it into the feed list, or a
+          // page further along in pagination than what is currently loaded.
+          final post = _postsStore.posts.firstWhere(
+            (candidate) => candidate.id == initialPost.id,
+            orElse: () => initialPost,
+          );
+          return _PostDetailScaffold(
+            post: post,
+            onDelete: () => _handleDelete(post),
+          );
+        },
       );
     }
     return Observer(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 
 import '../../../../app/theme/app_dimens.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../stores/comments_store.dart';
@@ -56,26 +57,27 @@ class CommentsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final l10n = AppLocalizations.of(context)!;
     return Observer(
       builder: (_) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Comments', style: theme.textTheme.titleMedium),
+            Text(l10n.commentsHeading, style: theme.textTheme.titleMedium),
             const SizedBox(height: AppDimens.spacingSm),
-            ..._buildBody(theme, store),
+            ..._buildBody(theme, l10n, store),
           ],
         );
       },
     );
   }
 
-  List<Widget> _buildBody(ThemeData theme, CommentsStore store) {
+  List<Widget> _buildBody(ThemeData theme, AppLocalizations l10n, CommentsStore store) {
     if (store.isLoading && !store.hasLoadedOnce) {
-      return const [
+      return [
         Padding(
-          padding: EdgeInsets.symmetric(vertical: AppDimens.spacingLg),
-          child: LoadingIndicator(semanticsLabel: 'Loading comments'),
+          padding: const EdgeInsets.symmetric(vertical: AppDimens.spacingLg),
+          child: LoadingIndicator(semanticsLabel: l10n.loadingCommentsLabel),
         ),
       ];
     }
@@ -95,7 +97,7 @@ class CommentsSection extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: AppDimens.spacingLg),
           child: Text(
-            'No comments yet. Be the first to say something.',
+            l10n.noCommentsMessage,
             style: theme.textTheme.bodyMedium,
           ),
         ),
@@ -118,9 +120,9 @@ class CommentsSection extends StatelessWidget {
         },
       ),
       if (store.isLoadingMore)
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: AppDimens.spacingMd),
-          child: LoadingIndicator(semanticsLabel: 'Loading more comments'),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppDimens.spacingMd),
+          child: LoadingIndicator(semanticsLabel: l10n.loadingMoreCommentsLabel),
         ),
     ];
   }

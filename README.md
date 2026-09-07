@@ -806,12 +806,12 @@ Optional integrations that are not required to complete the app, kept in their o
 - [x] Unit test: `SignInWithGoogleUseCase` maps a mocked API response to `User` the same way `SignInUseCase` does
 
 **Push notifications**
-- [ ] Add `firebase_core` and `firebase_messaging` (Firebase used here strictly for push delivery, not as a data backend)
-- [ ] Request notification permission, retrieve the device push token
-- [ ] Register the token with the backend via `POST /devices`, deregister on sign-out via `DELETE /devices/:pushToken`
-- [ ] Add `flutter_local_notifications` to display a system notification when a message arrives in the foreground
-- [ ] Handle a tap on a notification: deep-link into `PostDetailPage` via `go_router`
-- [ ] Document that the backend is responsible for triggering the actual push send (e.g. on a new comment) through Firebase Admin SDK or an equivalent server-side FCM client
+- [x] Add `firebase_core` and `firebase_messaging` (Firebase used here strictly for push delivery, not as a data backend)
+- [x] Request notification permission, retrieve the device push token
+- [x] Register the token with the backend via `POST /devices`, deregister on sign-out via `DELETE /devices/:pushToken`
+- [x] Add `flutter_local_notifications` to display a system notification when a message arrives in the foreground
+- [x] Handle a tap on a notification: deep-link into `PostDetailPage` via `go_router`
+- [x] Document that the backend is responsible for triggering the actual push send (e.g. on a new comment) through Firebase Admin SDK or an equivalent server-side FCM client
 
 ---
 
@@ -1017,6 +1017,16 @@ iOS signing requires an active Apple Developer Program membership and is inheren
    - `GIDClientID` -> the iOS OAuth client id created in step 1.
    - the `CFBundleURLTypes` entry's `CFBundleURLSchemes` value (`REVERSED_CLIENT_ID`) -> that same client id with its dot-separated components reversed, exactly as Google's own "Add a URL scheme" setup step produces (for example, a client id of `1234-abcd.apps.googleusercontent.com` reverses to `com.googleusercontent.apps.1234-abcd`).
 4. The backend's `POST /auth/google` implementation is responsible for verifying the ID token the client sends against Google's public keys (via Google's token info endpoint or a server-side Google auth library) before trusting the email/profile claims inside it; the Flutter client never validates the token itself, it only forwards whatever `idToken` `google_sign_in` returns.
+
+### Push Notifications Setup
+
+`feature/integrations` (bonus) wires up `firebase_core`, `firebase_messaging`, and `flutter_local_notifications` end to end in code (`core/notifications/push_notification_service.dart`), but it needs a real Firebase project to actually receive a push, which is not something to generate or commit in this repository. This repository intentionally ships with no `android/app/google-services.json` and no `ios/Runner/GoogleService-Info.plist`; without them, `Firebase.initializeApp()` throws, and `bootstrap.dart` deliberately catches that in its own try/catch, separate from the rest of startup, so the app still boots normally with push notifications simply inactive. This section documents the steps to add a real project yourself.
+
+1. In the [Firebase Console](https://console.firebase.google.com/), create (or reuse) a project, then register an Android app and an iOS app against it, using this project's Android `applicationId` (see `android/app/build.gradle.kts`) and iOS `PRODUCT_BUNDLE_IDENTIFIER` (see `ios/Runner.xcodeproj`) respectively.
+2. Download the `google-services.json` file Firebase generates for the Android app and place it at `android/app/google-services.json`. Download the `GoogleService-Info.plist` file Firebase generates for the iOS app and place it at `ios/Runner/GoogleService-Info.plist`. Both paths are exact; the native Firebase SDKs on each platform look for the file at that specific location.
+3. Alternatively, and this is the standard approach for a project already using the FlutterFire tooling, run `flutterfire configure` from the repository root once the [FlutterFire CLI](https://firebase.google.com/docs/flutter/setup) is installed and you are logged into the Firebase CLI (`firebase login`). It downloads both native config files above in one step *and* generates `lib/firebase_options.dart`, wiring both platforms at once; `Firebase.initializeApp()` in `push_notification_service.dart` would then be updated to pass `options: DefaultFirebaseOptions.currentPlatform` from that generated file (this repository calls `Firebase.initializeApp()` with no arguments today, which relies purely on the native config files from step 2 being present, since no `firebase_options.dart` is checked in).
+4. Cloud Messaging needs no further Firebase Console setup beyond the app registration above; a device registers itself for push the moment `PushNotificationService.initialize()` runs successfully (permission prompt, then `POST /devices` with the retrieved token).
+5. The backend, not this Flutter client, is responsible for actually triggering a push send, for example notifying a post's author the moment someone comments on their post. It does this out of band, typically via the [Firebase Admin SDK](https://firebase.google.com/docs/cloud-messaging/send-message) (Node, Java, Python, Go, ...) or any other server-side FCM client, using the device tokens it already has on file from `POST /devices`. The Flutter client's role ends at registering/deregistering its own device token and reacting to whatever message Firebase already decided to deliver (foreground display via `flutter_local_notifications`, or a tap that deep-links into `PostDetailPage`); it never itself calls any "send a push" endpoint.
 
 ---
 

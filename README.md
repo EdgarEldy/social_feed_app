@@ -760,15 +760,15 @@ Optimistic UI toggle, explicit animation.
 
 ### Tasks
 
-- [ ] Create `LikeRemoteDatasource` (`POST /posts/:postId/likes` to toggle, `GET /posts/:postId/likes/me`)
-- [ ] Create `LikeRepositoryImpl`, `ToggleLikeUseCase`
-- [ ] Create a `LikeStore` per post (`@observable bool isLiked`, `@observable int likesCount`, `@action toggle()`)
-- [ ] Build `LikeButton`: icon/count change immediately on tap (optimistic), ahead of the server response
-- [ ] Reconcile the optimistic state with the API response once it arrives
-- [ ] Build an explicit animation on the heart icon (`AnimationController` + `ScaleTransition`), swapped via `AnimatedSwitcher`
-- [ ] Handle network failure: revert to the previous state with a discreet error message
-- [ ] Unit test: `ToggleLikeUseCase` maps the API response to the correct liked/unliked state
-- [ ] Widget test: tapping `LikeButton` flips its icon state immediately, then reconciles with the mocked response
+- [x] Create `LikeRemoteDatasource` (`POST /posts/:postId/likes` to toggle, `GET /posts/:postId/likes/me`)
+- [x] Create `LikeRepositoryImpl`, `ToggleLikeUseCase`
+- [x] Create a `LikeStore` per post (`@observable bool isLiked`, `@observable int likesCount`, `@action toggle()`)
+- [x] Build `LikeButton`: icon/count change immediately on tap (optimistic), ahead of the server response
+- [x] Reconcile the optimistic state with the API response once it arrives
+- [x] Build an explicit animation on the heart icon (`AnimationController` + `ScaleTransition`), swapped via `AnimatedSwitcher`
+- [x] Handle network failure: revert to the previous state with a discreet error message
+- [x] Unit test: `ToggleLikeUseCase` maps the API response to the correct liked/unliked state
+- [x] Widget test: tapping `LikeButton` flips its icon state immediately, then reconciles with the mocked response
 
 ---
 

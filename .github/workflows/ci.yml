@@ -83,7 +83,17 @@ jobs:
         # Builds without a configured release keystore, so Flutter falls
         # back to debug-signing the release build. That is fine for CI
         # verification purposes; task 9 documents adding a real keystore.
-        run: flutter build apk --release
+        #
+        # --flavor/-t are required now that android/app/build.gradle.kts
+        # defines development/production product flavors: without them,
+        # `assembleRelease` builds every flavor's release variant at once
+        # (assembleDevelopmentRelease and assembleProductionRelease), and
+        # Flutter's tool then looks for a single unflavored output APK that
+        # no longer exists, failing with "Gradle build failed to produce an
+        # .apk file" despite Gradle itself succeeding. production is the
+        # flavor this check builds, as the one this PR gate cares about
+        # proving release-ready.
+        run: flutter build apk --release --flavor production -t lib/main_production.dart
 
   build-ios:
     name: Build iOS app

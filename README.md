@@ -46,6 +46,7 @@ This document is the **complete specification** of the mobile client. It is mean
 - [Order of Work](#order-of-work)
 - [Code Conventions](#code-conventions)
 - [Concepts Covered](#concepts-covered)
+- [Release Signing](#release-signing)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
@@ -786,7 +787,7 @@ App-wide accessibility and i18n pass, full test suite, flavors, and the release 
 - [x] Configure `development`/`production` flavors
 - [x] Generate app icons and splash screen (`flutter_launcher_icons`, `flutter_native_splash`)
 - [ ] Extend `ci.yml`: analyze -> test -> build APK/IPA on every PR to `master`
-- [ ] Document Android keystore signing and iOS certificate setup
+- [x] Document Android keystore signing and iOS certificate setup
 
 ---
 
@@ -935,6 +936,74 @@ git checkout -b feature/<name>
 - Flavors, app icons/splash screen, release signing
 
 ---
+
+## Release Signing
+
+This project ships `android/app/build.gradle.kts` with its release build type signed by the debug key (`signingConfig = signingConfigs.getByName("debug")`), so `flutter run --release` and CI's `flutter build apk --release` work out of the box without any secrets. That is fine for development and for this tutorial's CI check, but a debug-signed APK cannot be uploaded to the Play Store, and there is no signed `.ipa` at all yet (CI builds iOS with `--no-codesign`, which produces an unsigned `.app`, not something installable outside a simulator). Neither platform's real signing identity is set up in this repository, on purpose: those are secrets specific to whoever actually publishes the app, not something to generate or commit here. This section documents the steps to add them yourself.
+
+### Android keystore
+
+1. Generate an upload key (only needs to be done once; keep the resulting file and its passwords somewhere safe outside the repo, e.g. a password manager):
+   ```sh
+   keytool -genkey -v -keystore ~/upload-keystore.jks \
+     -keyalg RSA -keysize 2048 -validity 10000 \
+     -alias upload
+   ```
+2. Create `android/key.properties` (never commit this file — see step 4) pointing at it:
+   ```properties
+   storePassword=<the keystore password you set above>
+   keyPassword=<the key password you set above>
+   keyAlias=upload
+   storeFile=/absolute/path/to/upload-keystore.jks
+   ```
+3. In `android/app/build.gradle.kts`, load `key.properties` and add a real `release` signing config, replacing the current debug-signed fallback:
+   ```kotlin
+   import java.util.Properties
+   import java.io.FileInputStream
+
+   val keystoreProperties = Properties()
+   val keystorePropertiesFile = rootProject.file("key.properties")
+   if (keystorePropertiesFile.exists()) {
+       keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+   }
+
+   android {
+       // ...existing compileSdk/defaultConfig/etc. unchanged...
+
+       signingConfigs {
+           create("release") {
+               keyAlias = keystoreProperties["keyAlias"] as String?
+               keyPassword = keystoreProperties["keyPassword"] as String?
+               storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+               storePassword = keystoreProperties["storePassword"] as String?
+           }
+       }
+
+       buildTypes {
+           release {
+               signingConfig = if (keystorePropertiesFile.exists()) {
+                   signingConfigs.getByName("release")
+               } else {
+                   signingConfigs.getByName("debug")
+               }
+           }
+       }
+   }
+   ```
+   The `keystorePropertiesFile.exists()` check keeps local `flutter run --release` and CI (neither of which has `key.properties`) falling back to debug signing exactly as today, while a machine that does have the file produces a properly signed release build.
+4. Add both secrets to `.gitignore`: `android/key.properties` and the keystore file itself (e.g. `*.jks`). Never commit either.
+5. To sign in CI instead of locally, base64-encode the `.jks` file and store it, along with the three passwords/alias from `key.properties`, as GitHub Actions repository secrets; add a CI step that decodes the secret back to a file and writes `key.properties` from the other secrets before `flutter build apk --release` runs.
+
+### iOS certificates and provisioning
+
+iOS signing requires an active Apple Developer Program membership and is inherently interactive the first time (Xcode drives most of it):
+
+1. In [Apple Developer](https://developer.apple.com/account) -> Certificates, Identifiers & Profiles, register an App ID matching this project's bundle identifier (see `ios/Runner.xcodeproj`'s `PRODUCT_BUNDLE_IDENTIFIER`; per-flavor bundle ids follow the pattern documented in Troubleshooting above, e.g. a `.dev` suffix for the development flavor, matching Android's `applicationIdSuffix`).
+2. Create a Distribution certificate (for App Store / TestFlight) and, separately, a Development certificate (for installing on your own registered test devices) under Certificates.
+3. Create matching Provisioning Profiles under Profiles: an App Store profile for the Distribution certificate, and a Development profile (listing your registered test device UDIDs) for the Development certificate. One pair per flavor bundle id if using flavors for real releases.
+4. Open `ios/Runner.xcworkspace` in Xcode -> select the `Runner` target -> Signing & Capabilities tab -> pick your Team, and either let Xcode manage signing automatically (simplest for a single developer) or turn off automatic signing and select the certificate/profile pair created above explicitly (needed once a team shares one signing identity, e.g. via CI).
+5. Build a signed archive with `flutter build ipa`, which requires an `ios/ExportOptions.plist` describing the export method (`app-store`, `ad-hoc`, or `development`) and your Team ID; Xcode's Organizer (Product -> Archive, then Distribute App) can generate a starting `ExportOptions.plist` for you the first time.
+6. For CI signing without an interactive Xcode session, the standard approach is [fastlane match](https://docs.fastlane.tools/actions/match/): it stores the certificate and provisioning profiles encrypted in a private git repo (or cloud storage) and installs them into the CI runner's keychain before the build. That is a heavier setup than this tutorial covers; the `build-ios` CI job in `.github/workflows/ci.yml` intentionally stays at `--no-codesign` until a real Apple Developer identity and a decision on how to store it in CI secrets exists.
 
 ---
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_dimens.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/network_info/connectivity_store.dart';
 import '../../../../core/widgets/adaptive_grid.dart';
 import '../../../../core/widgets/error_view.dart';
@@ -92,14 +93,14 @@ class _FeedPageState extends State<FeedPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               const _FeedSliverAppBar(),
-              ..._buildContentSlivers(_postsStore),
+              ..._buildContentSlivers(context, _postsStore),
             ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/posts/new'),
-        tooltip: 'Create a post',
+        tooltip: AppLocalizations.of(context)!.createPostTooltip,
         child: const Icon(Icons.add),
       ),
     );
@@ -119,8 +120,8 @@ class _FeedSliverAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SliverAppBar(
-      title: Text('Feed'),
+    return SliverAppBar(
+      title: Text(AppLocalizations.of(context)!.feedTitle),
       floating: true,
       snap: true,
     );
@@ -136,12 +137,14 @@ class _FeedSliverAppBar extends StatelessWidget {
 /// wrapping [CustomScrollView] in [_FeedPageState] is what makes every read
 /// below reactive, splitting it into a separate widget would not add
 /// anything beyond an extra layer of indirection.
-List<Widget> _buildContentSlivers(PostsStore store) {
+List<Widget> _buildContentSlivers(BuildContext context, PostsStore store) {
   if (store.isLoadingFeed && store.posts.isEmpty) {
-    return const [
+    return [
       SliverFillRemaining(
         hasScrollBody: false,
-        child: LoadingIndicator(semanticsLabel: 'Loading feed'),
+        child: LoadingIndicator(
+          semanticsLabel: AppLocalizations.of(context)!.loadingFeedLabel,
+        ),
       ),
     ];
   }
@@ -157,8 +160,8 @@ List<Widget> _buildContentSlivers(PostsStore store) {
   }
 
   if (store.hasLoadedOnce && store.posts.isEmpty) {
-    return const [
-      SliverFillRemaining(hasScrollBody: false, child: _FeedEmptyState()),
+    return [
+      const SliverFillRemaining(hasScrollBody: false, child: _FeedEmptyState()),
     ];
   }
 
@@ -215,6 +218,7 @@ class _FeedEmptyState extends StatelessWidget {
     return Observer(
       builder: (_) {
         final isOffline = !connectivityStore.isOnline;
+        final l10n = AppLocalizations.of(context)!;
         return Center(
           child: Padding(
             padding: const EdgeInsets.all(AppDimens.spacingLg),
@@ -228,9 +232,7 @@ class _FeedEmptyState extends StatelessWidget {
                 ),
                 const SizedBox(height: AppDimens.spacingMd),
                 Text(
-                  isOffline
-                      ? "You're offline and no posts are cached yet."
-                      : 'No posts yet. Be the first to share something.',
+                  isOffline ? l10n.offlineNoPostsMessage : l10n.noPostsMessage,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -250,10 +252,12 @@ class _FeedLoadMoreSliver extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SliverToBoxAdapter(
+    return SliverToBoxAdapter(
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: AppDimens.spacingLg),
-        child: LoadingIndicator(semanticsLabel: 'Loading more posts'),
+        padding: const EdgeInsets.symmetric(vertical: AppDimens.spacingLg),
+        child: LoadingIndicator(
+          semanticsLabel: AppLocalizations.of(context)!.loadingMorePostsLabel,
+        ),
       ),
     );
   }

@@ -30,7 +30,7 @@ class DioClient {
   /// for why it is a callback rather than a direct `AuthStore` dependency.
   static Dio create({
     required SecureTokenStorage tokenStorage,
-    void Function()? onSessionExpired,
+    void Function(String? expiredAccessToken)? onSessionExpired,
   }) {
     // A missing or misspelled key must fail loudly at startup rather than
     // silently pointing Dio at an empty base URL, which would otherwise

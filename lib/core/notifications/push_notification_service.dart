@@ -226,10 +226,14 @@ class PushNotificationService {
         data: buildDeviceRegistrationBody(token),
       );
       _registeredToken = token;
-    } on DioException {
+    } catch (_) {
       // Best-effort: a failed registration call is not surfaced anywhere
       // actionable (there is no UI slot for "push registration failed"),
       // and the next onTokenRefresh/app restart gets another chance.
+      // Catches more than just DioException on purpose: this also runs as
+      // an onTokenRefresh stream listener (see initialize()), where an
+      // uncaught error would otherwise escape as an unhandled stream error
+      // instead of staying contained to this best-effort operation.
     }
   }
 
@@ -261,8 +265,10 @@ class PushNotificationService {
             ? null
             : Options(headers: {'Authorization': 'Bearer $accessToken'}),
       );
-    } on DioException {
-      // Best-effort, same reasoning as _registerToken above.
+    } catch (_) {
+      // Best-effort, same reasoning as _registerToken above: this is
+      // documented on the class as never throwing, since AuthStore.signOut
+      // awaits it with no guard of its own beyond that contract.
     } finally {
       _registeredToken = null;
     }

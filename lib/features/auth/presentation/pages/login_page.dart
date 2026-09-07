@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_dimens.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../stores/auth_store.dart';
 import '../utils/auth_validators.dart';
@@ -48,10 +49,11 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AuthErrorListener(
       authStore: _authStore,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Log in')),
+        appBar: AppBar(title: Text(l10n.loginPageTitle)),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(AppDimens.spacingLg),
@@ -65,8 +67,9 @@ class _LoginPageState extends State<LoginPage> {
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(labelText: 'Email'),
-                    validator: AuthValidators.validateEmail,
+                    decoration: InputDecoration(labelText: l10n.emailFieldLabel),
+                    validator: (value) =>
+                        AuthValidators.validateEmail(context, value),
                   ),
                   const SizedBox(height: AppDimens.spacingMd),
                   TextFormField(
@@ -74,21 +77,25 @@ class _LoginPageState extends State<LoginPage> {
                     obscureText: true,
                     textInputAction: TextInputAction.done,
                     autofillHints: const [AutofillHints.password],
-                    decoration: const InputDecoration(labelText: 'Password'),
-                    validator: AuthValidators.validatePassword,
+                    decoration:
+                        InputDecoration(labelText: l10n.passwordFieldLabel),
+                    validator: (value) =>
+                        AuthValidators.validatePassword(context, value),
                     onFieldSubmitted: (_) => _submit(),
                   ),
                   const SizedBox(height: AppDimens.spacingLg),
                   Observer(
                     builder: (_) => AppButton(
-                      label: _authStore.isSubmitting ? 'Signing in...' : 'Sign in',
+                      label: _authStore.isSubmitting
+                          ? l10n.signingInButtonLabel
+                          : l10n.signInButtonLabel,
                       onPressed: _authStore.isSubmitting ? null : _submit,
                     ),
                   ),
                   const SizedBox(height: AppDimens.spacingMd),
                   TextButton(
                     onPressed: () => context.go('/register'),
-                    child: const Text("Don't have an account? Sign up"),
+                    child: Text(l10n.noAccountPrompt),
                   ),
                 ],
               ),

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/di/injection_container.dart';
+import '../../core/errors/failure.dart';
 import '../../core/widgets/error_view.dart';
 import '../../core/widgets/loading_indicator.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/stores/auth_store.dart';
 import '../../features/posts/domain/entities/post.dart';
+import '../../features/posts/domain/usecases/get_post_usecase.dart';
 import '../../features/posts/presentation/pages/create_post_page.dart';
 import '../../features/posts/presentation/pages/feed_page.dart';
 import '../../features/posts/presentation/pages/post_detail_page.dart';
-import '../../features/posts/presentation/stores/posts_store.dart';
 import '../../features/users/presentation/pages/edit_profile_page.dart';
 import '../../features/users/presentation/pages/profile_page.dart';
 
@@ -191,8 +191,20 @@ class _AppShell extends StatelessWidget {
 /// is the [initialPost] case below. A direct visit to this route without
 /// that `extra` (a deep link, a page restored without its navigation
 /// history) has no such in-memory `Post` to reuse, so this widget falls back
-/// to [PostsStore.loadPost], the same load `PostDetailPage` uses for its own
-/// `GET /posts/:id`.
+/// to a one-shot [GetPostUseCase] call.
+///
+/// This deliberately does not go through `PostsStore.loadPost`/`currentPost`
+/// the way `PostDetailPage`'s own deep-link fallback does. Both this route
+/// and `PostDetailPage` can be mounted at the same time (this route is
+/// pushed as a child of `PostDetailPage`, and either could also be reached
+/// directly), and `PostsStore.currentPost` is a single shared slot: if both
+/// called `loadPost` for two different post ids, whichever call resolved
+/// last would clobber the other's slot, and both `Observer`s would end up
+/// showing the same (wrong, for one of them) post. Keeping this route's
+/// lookup in local, per-instance state (`_post`/`_isLoading`/`_error` below)
+/// sidesteps that entirely, the same pattern `EditProfilePage`/`AvatarPicker`
+/// in `feature/users` use for a one-shot load that does not belong on a
+/// shared store.
 class _EditPostRoute extends StatefulWidget {
   const _EditPostRoute({required this.id, this.initialPost});
 
@@ -204,12 +216,32 @@ class _EditPostRoute extends StatefulWidget {
 }
 
 class _EditPostRouteState extends State<_EditPostRoute> {
+  final GetPostUseCase _getPostUseCase = getIt<GetPostUseCase>();
+
+  bool _isLoading = false;
+  Post? _post;
+  Failure? _error;
+
   @override
   void initState() {
     super.initState();
     if (widget.initialPost == null) {
-      getIt<PostsStore>().loadPost(widget.id);
+      _loadPost();
     }
+  }
+
+  Future<void> _loadPost() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    final result = await _getPostUseCase(widget.id);
+    if (!mounted) return;
+    result.match(
+      (failure) => setState(() => _error = failure),
+      (post) => setState(() => _post = post),
+    );
+    setState(() => _isLoading = false);
   }
 
   @override
@@ -218,27 +250,22 @@ class _EditPostRouteState extends State<_EditPostRoute> {
     if (initialPost != null) {
       return CreatePostPage(existingPost: initialPost);
     }
-    return Observer(
-      builder: (_) {
-        final store = getIt<PostsStore>();
-        if (store.isLoadingCurrentPost) {
-          return const Scaffold(
-            body: LoadingIndicator(semanticsLabel: 'Loading post'),
-          );
-        }
-        final error = store.currentPostError;
-        if (error != null) {
-          return Scaffold(body: ErrorView(message: error.message));
-        }
-        final post = store.currentPost;
-        if (post == null || post.id != widget.id) {
-          return const Scaffold(
-            body: ErrorView(message: 'Post not found.'),
-          );
-        }
-        return CreatePostPage(existingPost: post);
-      },
-    );
+    if (_isLoading) {
+      return const Scaffold(
+        body: LoadingIndicator(semanticsLabel: 'Loading post'),
+      );
+    }
+    final error = _error;
+    if (error != null) {
+      return Scaffold(
+        body: ErrorView(message: error.message, onRetry: _loadPost),
+      );
+    }
+    final post = _post;
+    if (post == null || post.id != widget.id) {
+      return const Scaffold(body: ErrorView(message: 'Post not found.'));
+    }
+    return CreatePostPage(existingPost: post);
   }
 }
 

@@ -101,7 +101,7 @@ class AuthInterceptor extends Interceptor {
   /// `401` around the same time (e.g. a burst of feed/comments calls), they
   /// all await the same in-flight refresh instead of each calling
   /// `/auth/refresh` separately.
-  Future<bool>? _pendingRefresh;
+  Future<({bool refreshed, String? expiredAccessToken})>? _pendingRefresh;
 
   @override
   void onRequest(
@@ -182,8 +182,8 @@ class AuthInterceptor extends Interceptor {
       return;
     }
 
-    final refreshed = await _refreshAccessToken(refreshToken);
-    if (!refreshed) {
+    final refreshResult = await _refreshAccessToken(refreshToken);
+    if (!refreshResult.refreshed) {
       // _refreshAccessToken already cleared the tokens on failure, so the
       // access token has to be read before calling it, not after (unlike
       // the two branches above, where clearTokens() happens right here).
@@ -201,7 +201,7 @@ class AuthInterceptor extends Interceptor {
       // not silently depend on that storage invariant holding forever.
       if (wasAuthenticatedRequest) {
         err.requestOptions.extra[_sessionExpiredKey] = true;
-        _onSessionExpired?.call(_accessTokenBeforeLastFailedRefresh);
+        _onSessionExpired?.call(refreshResult.expiredAccessToken);
       }
       handler.next(err);
       return;
@@ -220,15 +220,29 @@ class AuthInterceptor extends Interceptor {
     }
   }
 
-  /// Performs the refresh, or joins an already in-flight one, returning
-  /// whether a new access token is now stored.
-  Future<bool> _refreshAccessToken(String refreshToken) {
+  /// Performs the refresh, or joins an already in-flight one.
+  ///
+  /// Returns the outcome as a record rather than a bare `bool` and a
+  /// separate field: several `onError` invocations can coalesce onto the
+  /// same in-flight refresh (see [_pendingRefresh]'s doc), and a later,
+  /// independent refresh can start as soon as this one completes and
+  /// `_pendingRefresh` resets to `null`. A shared mutable field holding
+  /// "the last failed refresh's expired token" would be a race between
+  /// that later refresh overwriting it and an earlier waiter reading it;
+  /// returning the token as part of the same `Future` each caller already
+  /// awaits ties it to the specific refresh attempt they were actually
+  /// waiting on, so there is nothing left to race.
+  Future<({bool refreshed, String? expiredAccessToken})> _refreshAccessToken(
+    String refreshToken,
+  ) {
     return _pendingRefresh ??= _performRefresh(refreshToken).whenComplete(() {
       _pendingRefresh = null;
     });
   }
 
-  Future<bool> _performRefresh(String refreshToken) async {
+  Future<({bool refreshed, String? expiredAccessToken})> _performRefresh(
+    String refreshToken,
+  ) async {
     try {
       final response = await _refreshDio.post<Map<String, dynamic>>(
         ApiEndpoints.refresh,
@@ -241,10 +255,9 @@ class AuthInterceptor extends Interceptor {
         accessToken: newAccessToken,
         refreshToken: refreshToken,
       );
-      return true;
+      return (refreshed: true, expiredAccessToken: null);
     } on DioException {
-      await _clearTokensAfterFailedRefresh();
-      return false;
+      return (refreshed: false, expiredAccessToken: await _clearTokensAfterFailedRefresh());
     } catch (_) {
       // A refresh response that comes back 2xx but does not actually match
       // the documented `{ accessToken }` shape (missing key, wrong type)
@@ -253,20 +266,15 @@ class AuthInterceptor extends Interceptor {
       // silently miss it and let it escape uncaught. A malformed refresh
       // body is treated the same as a failed refresh: clear the tokens and
       // report failure.
-      await _clearTokensAfterFailedRefresh();
-      return false;
+      return (refreshed: false, expiredAccessToken: await _clearTokensAfterFailedRefresh());
     }
   }
 
-  /// The access token that was in storage immediately before a failed
-  /// refresh cleared it, so `onError`'s `if (!refreshed)` branch can still
-  /// hand it to `_onSessionExpired`. Only meaningful immediately after
-  /// `_performRefresh` returns `false`; read it exactly once from there
-  /// rather than at arbitrary points elsewhere.
-  String? _accessTokenBeforeLastFailedRefresh;
-
-  Future<void> _clearTokensAfterFailedRefresh() async {
-    _accessTokenBeforeLastFailedRefresh = await _tokenStorage.getAccessToken();
+  /// Reads the access token in storage immediately before clearing it, so
+  /// the caller can still hand it to `_onSessionExpired` afterward.
+  Future<String?> _clearTokensAfterFailedRefresh() async {
+    final expiredAccessToken = await _tokenStorage.getAccessToken();
     await _tokenStorage.clearTokens();
+    return expiredAccessToken;
   }
 }

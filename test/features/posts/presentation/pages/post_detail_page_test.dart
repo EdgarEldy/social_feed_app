@@ -16,6 +16,7 @@ import 'package:social_feed_app/features/comments/domain/entities/comment.dart';
 import 'package:social_feed_app/features/comments/domain/usecases/add_comment_usecase.dart';
 import 'package:social_feed_app/features/comments/domain/usecases/delete_comment_usecase.dart';
 import 'package:social_feed_app/features/comments/domain/usecases/get_comments_usecase.dart';
+import 'package:social_feed_app/features/likes/domain/usecases/toggle_like_usecase.dart';
 import 'package:social_feed_app/features/posts/domain/entities/post.dart';
 import 'package:social_feed_app/features/posts/domain/usecases/create_post_usecase.dart';
 import 'package:social_feed_app/features/posts/domain/usecases/delete_post_usecase.dart';
@@ -48,6 +49,8 @@ class _MockGetCommentsUseCase extends Mock implements GetCommentsUseCase {}
 class _MockAddCommentUseCase extends Mock implements AddCommentUseCase {}
 
 class _MockDeleteCommentUseCase extends Mock implements DeleteCommentUseCase {}
+
+class _MockToggleLikeUseCase extends Mock implements ToggleLikeUseCase {}
 
 void main() {
   late _MockUpdatePostUseCase updatePostUseCase;
@@ -109,6 +112,11 @@ void main() {
     getIt.registerLazySingleton<GetCommentsUseCase>(() => getCommentsUseCase);
     getIt.registerLazySingleton<AddCommentUseCase>(() => _MockAddCommentUseCase());
     getIt.registerLazySingleton<DeleteCommentUseCase>(() => _MockDeleteCommentUseCase());
+
+    // _PostDetailStats now builds its own LikeStore straight from get_it
+    // (see its class doc), so it needs ToggleLikeUseCase registered even
+    // though none of the tests below tap the LikeButton.
+    getIt.registerLazySingleton<ToggleLikeUseCase>(() => _MockToggleLikeUseCase());
   });
 
   tearDown(() async {

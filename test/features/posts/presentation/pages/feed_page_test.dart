@@ -15,6 +15,7 @@ import 'package:social_feed_app/features/auth/domain/usecases/sign_in_usecase.da
 import 'package:social_feed_app/features/auth/domain/usecases/sign_out_usecase.dart';
 import 'package:social_feed_app/features/auth/domain/usecases/sign_up_usecase.dart';
 import 'package:social_feed_app/features/auth/presentation/stores/auth_store.dart';
+import 'package:social_feed_app/features/likes/domain/usecases/toggle_like_usecase.dart';
 import 'package:social_feed_app/features/posts/domain/entities/post.dart';
 import 'package:social_feed_app/features/posts/domain/usecases/create_post_usecase.dart';
 import 'package:social_feed_app/features/posts/domain/usecases/delete_post_usecase.dart';
@@ -44,6 +45,8 @@ class _MockSignOutUseCase extends Mock implements SignOutUseCase {}
 class _MockSecureTokenStorage extends Mock implements SecureTokenStorage {}
 
 class _MockConnectivity extends Mock implements Connectivity {}
+
+class _MockToggleLikeUseCase extends Mock implements ToggleLikeUseCase {}
 
 void main() {
   late _MockGetPostsUseCase getPostsUseCase;
@@ -108,6 +111,11 @@ void main() {
     when(() => connectivity.checkConnectivity()).thenAnswer((_) async => [ConnectivityResult.wifi]);
     when(() => connectivity.onConnectivityChanged).thenAnswer((_) => const Stream.empty());
     getIt.registerSingleton<ConnectivityStore>(ConnectivityStore(connectivity: connectivity));
+
+    // Each PostCard now builds its own LikeStore straight from get_it (see
+    // its class doc), so it needs ToggleLikeUseCase registered even though
+    // none of the tests below tap the LikeButton.
+    getIt.registerLazySingleton<ToggleLikeUseCase>(() => _MockToggleLikeUseCase());
   });
 
   tearDown(() async {

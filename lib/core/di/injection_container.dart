@@ -17,10 +17,23 @@ import '../../features/users/domain/repositories/user_repository.dart';
 import '../../features/users/domain/usecases/get_user_usecase.dart';
 import '../../features/users/domain/usecases/update_user_usecase.dart';
 import '../../features/users/domain/usecases/upload_avatar_usecase.dart';
+import '../../features/posts/data/datasources/post_local_datasource.dart';
+import '../../features/posts/data/datasources/post_remote_datasource.dart';
+import '../../features/posts/data/repositories/post_repository_impl.dart';
+import '../../features/posts/data/sync/post_pending_write_replayer.dart';
+import '../../features/posts/domain/repositories/post_repository.dart';
+import '../../features/posts/domain/usecases/create_post_usecase.dart';
+import '../../features/posts/domain/usecases/delete_post_usecase.dart';
+import '../../features/posts/domain/usecases/get_post_usecase.dart';
+import '../../features/posts/domain/usecases/get_posts_usecase.dart';
+import '../../features/posts/domain/usecases/update_post_usecase.dart';
+import '../../features/posts/presentation/stores/posts_store.dart';
 import '../database/app_database.dart';
 import '../network/dio_client.dart';
 import '../network_info/connectivity_store.dart';
 import '../storage/secure_token_storage.dart';
+import '../sync/composite_pending_write_replayer.dart';
+import '../sync/sync_service.dart';
 
 /// The app-wide service locator.
 ///
@@ -177,20 +190,92 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
     dispose: (router) => router.dispose(),
   );
 
-  // core/sync/sync_service.dart's SyncService is deliberately not
-  // registered here yet. It needs a real PendingWriteReplayer, and no
-  // feature has a concrete *RemoteDatasource for it to replay against
-  // until feature/posts/feature/comments are built. Those branches are
-  // expected to add the registration here, roughly:
-  //
-  //   getIt.registerLazySingleton<SyncService>(
-  //     () => SyncService(
-  //       appDatabase: getIt<AppDatabase>(),
-  //       connectivityStore: getIt<ConnectivityStore>(),
-  //       replayer: buildPendingWriteReplayer(...),
-  //     )..start(),
-  //     dispose: (service) => service.dispose(),
-  //   );
+  // feature/posts's remote and local datasources, then the repository that
+  // coordinates them, in the same datasource-then-repository order as
+  // auth/users above. PostLocalDatasource is registered on its own (not
+  // just reached through PostRepository) because the sync replayer below
+  // also needs direct access to it, independent of the repository.
+  getIt.registerLazySingleton<PostRemoteDatasource>(
+    () => PostRemoteDatasourceImpl(getIt<Dio>()),
+  );
+  getIt.registerLazySingleton<PostLocalDatasource>(
+    () => PostLocalDatasource(getIt<AppDatabase>()),
+  );
+  getIt.registerLazySingleton<PostRepository>(
+    () => PostRepositoryImpl(
+      remoteDatasource: getIt<PostRemoteDatasource>(),
+      localDatasource: getIt<PostLocalDatasource>(),
+      appDatabase: getIt<AppDatabase>(),
+      // Resolved lazily, only when an offline createPost() actually needs
+      // it, the same "closure built at the composition root" pattern
+      // _defaultDioFactory uses for onSessionExpired below, so PostRepository
+      // never itself depends on the presentation-layer AuthStore.
+      currentAuthor: () {
+        final user = getIt<AuthStore>().currentUser;
+        if (user == null) {
+          return null;
+        }
+        return (
+          id: user.id,
+          displayName: user.displayName,
+          photoUrl: user.photoUrl,
+        );
+      },
+    ),
+  );
+
+  // feature/posts's five usecases, registered right after PostRepository:
+  // GetPostsUseCase/GetPostUseCase/UpdatePostUseCase/DeletePostUseCase are
+  // thin pass-throughs, same as feature/users's usecases above.
+  // CreatePostUseCase is the one exception, validating title/content are
+  // non-empty before ever calling the repository; see its class doc.
+  getIt.registerLazySingleton<GetPostsUseCase>(
+    () => GetPostsUseCase(postRepository: getIt<PostRepository>()),
+  );
+  getIt.registerLazySingleton<GetPostUseCase>(
+    () => GetPostUseCase(postRepository: getIt<PostRepository>()),
+  );
+  getIt.registerLazySingleton<CreatePostUseCase>(
+    () => CreatePostUseCase(postRepository: getIt<PostRepository>()),
+  );
+  getIt.registerLazySingleton<UpdatePostUseCase>(
+    () => UpdatePostUseCase(postRepository: getIt<PostRepository>()),
+  );
+  getIt.registerLazySingleton<DeletePostUseCase>(
+    () => DeletePostUseCase(postRepository: getIt<PostRepository>()),
+  );
+
+  // PostsStore backs the single app-wide feed (see its class doc for why
+  // that makes it a get_it singleton, unlike UserStore's per-page scoping),
+  // so it is registered here right after the usecases it depends on.
+  getIt.registerLazySingleton<PostsStore>(
+    () => PostsStore(
+      getPostsUseCase: getIt<GetPostsUseCase>(),
+      getPostUseCase: getIt<GetPostUseCase>(),
+      createPostUseCase: getIt<CreatePostUseCase>(),
+      deletePostUseCase: getIt<DeletePostUseCase>(),
+      updatePostUseCase: getIt<UpdatePostUseCase>(),
+    ),
+  );
+
+  // core/sync/sync_service.dart's SyncService now has a real
+  // PendingWriteReplayer to run: feature/posts's own replayer, wrapped in
+  // CompositePendingWriteReplayer so a later feature/comments branch can
+  // register its own entity-scoped replayer alongside this one without
+  // touching either this registration or feature/posts's replayer.
+  getIt.registerLazySingleton<SyncService>(
+    () => SyncService(
+      appDatabase: getIt<AppDatabase>(),
+      connectivityStore: getIt<ConnectivityStore>(),
+      replayer: CompositePendingWriteReplayer([
+        buildPostPendingWriteReplayer(
+          remoteDatasource: getIt<PostRemoteDatasource>(),
+          localDatasource: getIt<PostLocalDatasource>(),
+        ),
+      ]).call,
+    )..start(),
+    dispose: (service) => service.dispose(),
+  );
 }
 
 /// The production [Dio] factory used by [configureDependencies].

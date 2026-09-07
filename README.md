@@ -783,7 +783,7 @@ App-wide accessibility and i18n pass, full test suite, flavors, and the release 
 - [x] Fill any remaining unit/widget test coverage gaps across prior branches
 - [x] Golden tests for `PostCard` and `LikeButton` in light and dark theme
 - [x] One end-to-end `integration_test`: sign up, create a post, like it, comment on it
-- [ ] Configure `development`/`production` flavors
+- [x] Configure `development`/`production` flavors
 - [ ] Generate app icons and splash screen (`flutter_launcher_icons`, `flutter_native_splash`)
 - [ ] Extend `ci.yml`: analyze -> test -> build APK/IPA on every PR to `master`
 - [ ] Document Android keystore signing and iOS certificate setup
@@ -957,6 +957,13 @@ Run `dart run build_runner build --delete-conflicting-outputs`, or `dart run bui
 
 **The app shows stale data after coming back online.**
 Check that the repository's offline-first strategy (from `feature/offline-and-sync`) actually triggers a remote refetch on reconnection, and that `SyncService` has replayed any `pending_writes` before the UI re-reads from the cache.
+
+**iOS flavors (`development`/`production`) are not wired up in Xcode yet.**
+Android flavors are configured in `android/app/build.gradle.kts`, but the equivalent iOS setup (duplicating the `Debug`/`Release`/`Profile` build configurations per flavor, adding matching schemes, and pointing each configuration at a `.env.<flavor>`-aware `PRODUCT_BUNDLE_IDENTIFIER`) has to be done once, interactively, in Xcode; hand-editing `project.pbxproj` outside Xcode risks corrupting it. On a Mac, with `ios/Runner.xcworkspace` open in Xcode:
+1. Project navigator -> select the `Runner` project -> Info tab -> under Configurations, duplicate `Debug`, `Release`, and `Profile` twice, naming the copies `Debug-development`/`Release-development`/`Profile-development` and `Debug-production`/`Release-production`/`Profile-production`.
+2. For the `-development` configurations, set `PRODUCT_BUNDLE_IDENTIFIER` to the base id plus `.dev` (matching the Android `applicationIdSuffix`); leave the `-production` configurations on the base id.
+3. Product menu -> Scheme -> Manage Schemes -> duplicate the `Runner` scheme twice, naming them `development` and `production`, and edit each scheme's Run/Build/Profile/Archive actions to use the matching `-development`/`-production` build configurations.
+4. Run with `flutter run --flavor development -t lib/main_development.dart` (or `production`/`lib/main_production.dart`); Flutter picks the Xcode scheme whose name matches `--flavor`.
 
 ---
 

@@ -45,6 +45,7 @@ import '../../features/likes/domain/usecases/toggle_like_usecase.dart';
 import '../database/app_database.dart';
 import '../network/dio_client.dart';
 import '../network_info/connectivity_store.dart';
+import '../notifications/push_notification_service.dart';
 import '../storage/secure_token_storage.dart';
 import '../sync/composite_pending_write_replayer.dart';
 import '../sync/sync_service.dart';
@@ -198,6 +199,14 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
       signOutUseCase: getIt<SignOutUseCase>(),
       tokenStorage: getIt<SecureTokenStorage>(),
       googleSignIn: getIt<GoogleSignIn>(),
+      // Resolved lazily, only when signOut()/forceSignOut() actually run,
+      // not at the time this closure itself is built. PushNotificationService
+      // (registered near the very end of this function) depends on GoRouter,
+      // which itself depends on AuthStore, so reaching for
+      // getIt<PushNotificationService>() here eagerly would re-enter
+      // AuthStore's own not-yet-finished construction; see
+      // AuthStore's _deregisterPushToken doc for the full explanation.
+      deregisterPushToken: () => getIt<PushNotificationService>().deregister(),
     ),
   );
 
@@ -383,6 +392,19 @@ void configureDependencies({Dio Function() dioFactory = _defaultDioFactory}) {
       ]).call,
     )..start(),
     dispose: (service) => service.dispose(),
+  );
+
+  // PushNotificationService (feature/integrations, bonus) is registered last,
+  // now that both of its dependencies exist: Dio for the POST /devices and
+  // DELETE /devices/:pushToken calls, and GoRouter for navigating to a
+  // tapped notification's post via the same "resolved through getIt<T>()"
+  // pattern the router's own redirect guard uses to reach AuthStore. Unlike
+  // SyncService above, nothing here calls .initialize() eagerly: that call
+  // touches Firebase, which bootstrap.dart guards in its own try/catch
+  // separate from the rest of startup, so the resolve-and-initialize split
+  // happens there instead of at registration time.
+  getIt.registerLazySingleton<PushNotificationService>(
+    () => PushNotificationService(dio: getIt<Dio>(), router: getIt<GoRouter>()),
   );
 }
 

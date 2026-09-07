@@ -76,3 +76,26 @@ class CacheFailure extends Failure {
   @override
   int get hashCode => Object.hash(CacheFailure, message);
 }
+
+/// Input given to a usecase failed a client-side check before any network
+/// or cache call was ever made.
+///
+/// `feature/posts` is the first branch to need this: `CreatePostUseCase`
+/// rejects an empty title/content up front, and that rejection is neither a
+/// `NetworkFailure` (no request was attempted), a `ServerFailure` (no
+/// server was involved), an `UnauthorizedFailure`, nor a `CacheFailure` (no
+/// `sqflite` call was made either). Reusing one of those would make a UI
+/// that branches on `Failure` subtype (for example, to decide whether a
+/// retry button makes sense) draw the wrong conclusion about what actually
+/// happened.
+class ValidationFailure extends Failure {
+  const ValidationFailure(super.message);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ValidationFailure && other.message == message);
+
+  @override
+  int get hashCode => Object.hash(ValidationFailure, message);
+}

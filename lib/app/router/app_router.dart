@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/di/injection_container.dart';
+import '../../core/widgets/error_view.dart';
+import '../../core/widgets/loading_indicator.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/stores/auth_store.dart';
+import '../../features/posts/domain/entities/post.dart';
+import '../../features/posts/presentation/pages/create_post_page.dart';
+import '../../features/posts/presentation/pages/feed_page.dart';
+import '../../features/posts/presentation/pages/post_detail_page.dart';
+import '../../features/posts/presentation/stores/posts_store.dart';
 import '../../features/users/presentation/pages/edit_profile_page.dart';
 import '../../features/users/presentation/pages/profile_page.dart';
 
@@ -41,12 +50,30 @@ GoRouter buildAppRouter({
         path: '/register',
         builder: (context, state) => const RegisterPage(),
       ),
+      // Declared before '/posts/:id' below so it wins the match for the
+      // literal path '/posts/new', the same static-before-dynamic ordering
+      // '/profile/edit' relies on further down.
+      GoRoute(
+        path: '/posts/new',
+        builder: (context, state) => const CreatePostPage(),
+      ),
       GoRoute(
         path: '/posts/:id',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
-          return _PlaceholderPage(routeName: 'Post Detail', detail: id);
+          final initialPost = state.extra as Post?;
+          return PostDetailPage(postId: id, initialPost: initialPost);
         },
+        routes: [
+          GoRoute(
+            path: 'edit',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              final existingPost = state.extra as Post?;
+              return _EditPostRoute(id: id, initialPost: existingPost);
+            },
+          ),
+        ],
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -57,8 +84,7 @@ GoRouter buildAppRouter({
             routes: [
               GoRoute(
                 path: '/feed',
-                builder: (context, state) =>
-                    const _PlaceholderPage(routeName: 'Feed'),
+                builder: (context, state) => const FeedPage(),
               ),
             ],
           ),
@@ -156,24 +182,63 @@ class _AppShell extends StatelessWidget {
   }
 }
 
-/// Minimal placeholder page naming the route it stands in for.
+/// Resolves the `Post` behind `/posts/:id/edit`, then hands off to
+/// [CreatePostPage] in edit mode.
 ///
-/// No feature branch has built real pages yet, this exists purely so the
-/// route tree has something to render and can be exercised by a widget
-/// test.
-class _PlaceholderPage extends StatelessWidget {
-  const _PlaceholderPage({required this.routeName, this.detail});
+/// `PostCard`'s edit menu item already has the `Post` in memory (it is what
+/// it is rendering), so it passes it straight through as `extra` when it
+/// pushes this route, skipping a redundant `GET /posts/:id` round trip; that
+/// is the [initialPost] case below. A direct visit to this route without
+/// that `extra` (a deep link, a page restored without its navigation
+/// history) has no such in-memory `Post` to reuse, so this widget falls back
+/// to [PostsStore.loadPost], the same load `PostDetailPage` uses for its own
+/// `GET /posts/:id`.
+class _EditPostRoute extends StatefulWidget {
+  const _EditPostRoute({required this.id, this.initialPost});
 
-  final String routeName;
-  final String? detail;
+  final String id;
+  final Post? initialPost;
+
+  @override
+  State<_EditPostRoute> createState() => _EditPostRouteState();
+}
+
+class _EditPostRouteState extends State<_EditPostRoute> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialPost == null) {
+      getIt<PostsStore>().loadPost(widget.id);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(routeName)),
-      body: Center(
-        child: Text(detail == null ? routeName : '$routeName: $detail'),
-      ),
+    final initialPost = widget.initialPost;
+    if (initialPost != null) {
+      return CreatePostPage(existingPost: initialPost);
+    }
+    return Observer(
+      builder: (_) {
+        final store = getIt<PostsStore>();
+        if (store.isLoadingCurrentPost) {
+          return const Scaffold(
+            body: LoadingIndicator(semanticsLabel: 'Loading post'),
+          );
+        }
+        final error = store.currentPostError;
+        if (error != null) {
+          return Scaffold(body: ErrorView(message: error.message));
+        }
+        final post = store.currentPost;
+        if (post == null || post.id != widget.id) {
+          return const Scaffold(
+            body: ErrorView(message: 'Post not found.'),
+          );
+        }
+        return CreatePostPage(existingPost: post);
+      },
     );
   }
 }
+

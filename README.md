@@ -798,12 +798,12 @@ Optional integrations that are not required to complete the app, kept in their o
 ### Tasks
 
 **Sign in with Google**
-- [ ] Add `google_sign_in`, configure OAuth client ids for Android/iOS
-- [ ] Build a "Continue with Google" button on `LoginPage`
-- [ ] Retrieve the Google ID token, send it to `POST /auth/google`
-- [ ] Handle the case where the email already exists under a password-based account (surface a clear error, do not silently merge)
-- [ ] Reuse the existing `AuthStore` and token storage, no separate session model
-- [ ] Unit test: `SignInWithGoogleUseCase` maps a mocked API response to `User` the same way `SignInUseCase` does
+- [x] Add `google_sign_in`, configure OAuth client ids for Android/iOS
+- [x] Build a "Continue with Google" button on `LoginPage`
+- [x] Retrieve the Google ID token, send it to `POST /auth/google`
+- [x] Handle the case where the email already exists under a password-based account (surface a clear error, do not silently merge)
+- [x] Reuse the existing `AuthStore` and token storage, no separate session model
+- [x] Unit test: `SignInWithGoogleUseCase` maps a mocked API response to `User` the same way `SignInUseCase` does
 
 **Push notifications**
 - [ ] Add `firebase_core` and `firebase_messaging` (Firebase used here strictly for push delivery, not as a data backend)
@@ -1004,6 +1004,19 @@ iOS signing requires an active Apple Developer Program membership and is inheren
 4. Open `ios/Runner.xcworkspace` in Xcode -> select the `Runner` target -> Signing & Capabilities tab -> pick your Team, and either let Xcode manage signing automatically (simplest for a single developer) or turn off automatic signing and select the certificate/profile pair created above explicitly (needed once a team shares one signing identity, e.g. via CI).
 5. Build a signed archive with `flutter build ipa`, which requires an `ios/ExportOptions.plist` describing the export method (`app-store`, `ad-hoc`, or `development`) and your Team ID; Xcode's Organizer (Product -> Archive, then Distribute App) can generate a starting `ExportOptions.plist` for you the first time.
 6. For CI signing without an interactive Xcode session, the standard approach is [fastlane match](https://docs.fastlane.tools/actions/match/): it stores the certificate and provisioning profiles encrypted in a private git repo (or cloud storage) and installs them into the CI runner's keychain before the build. That is a heavier setup than this tutorial covers; the `build-ios` CI job in `.github/workflows/ci.yml` intentionally stays at `--no-codesign` until a real Apple Developer identity and a decision on how to store it in CI secrets exists.
+
+### Google Sign-In Setup
+
+`feature/integrations` (bonus) wires up `google_sign_in` end to end in code, but it needs a real Google Cloud OAuth client to actually authenticate, which is not something to generate or commit in this repository. This section documents the steps to add one yourself.
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create (or reuse) a project, then create two OAuth 2.0 Client IDs under APIs & Services -> Credentials:
+   - **Android**: application type "Android", this project's package name (`com.example.social_feed_app`, see `android/app/build.gradle.kts`'s `applicationId`; per-flavor builds need one client id per flavor's package name, e.g. the `.dev` suffix), and the SHA-1 fingerprint of the signing certificate that will build the app (`./gradlew signingReport` from `android/`, or `keytool -list -v -keystore <path> -alias <alias>` against the keystore documented in "Android keystore" above).
+   - **iOS**: application type "iOS", this project's bundle identifier (see `ios/Runner.xcodeproj`'s `PRODUCT_BUNDLE_IDENTIFIER`).
+2. `google_sign_in` on Android does not need any client id hardcoded in Dart or a `google-services.json` file for this project: the plugin resolves the right client automatically at runtime by matching the app's package name and signing certificate against the Android OAuth client registered in step 1. Nothing under `android/` needs to change once that client id exists in Google Cloud Console. (A `google-services.json` would only be needed if this project also adopted Firebase Auth, which it does not; `feature/integrations`'s push-notification half uses Firebase strictly for FCM delivery, not for sign-in.)
+3. `google_sign_in` on iOS does need local configuration: open `ios/Runner/Info.plist` and replace the two placeholder values already present there:
+   - `GIDClientID` -> the iOS OAuth client id created in step 1.
+   - the `CFBundleURLTypes` entry's `CFBundleURLSchemes` value (`REVERSED_CLIENT_ID`) -> that same client id with its dot-separated components reversed, exactly as Google's own "Add a URL scheme" setup step produces (for example, a client id of `1234-abcd.apps.googleusercontent.com` reverses to `com.googleusercontent.apps.1234-abcd`).
+4. The backend's `POST /auth/google` implementation is responsible for verifying the ID token the client sends against Google's public keys (via Google's token info endpoint or a server-side Google auth library) before trusting the email/profile claims inside it; the Flutter client never validates the token itself, it only forwards whatever `idToken` `google_sign_in` returns.
 
 ---
 

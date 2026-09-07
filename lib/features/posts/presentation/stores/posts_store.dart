@@ -169,6 +169,16 @@ abstract class _PostsStore with Store {
   /// A no-op while a load is already in flight (guards against a fast
   /// scroll triggering the same page twice) and once [_nextCursor] is
   /// `null` (there is no further page to load).
+  ///
+  /// Deduped by id before appending: the usual remote response only ever
+  /// contains posts not already in [posts], but `GetPostsUseCase` falls back
+  /// to the local cache on a `NetworkFailure` (see
+  /// `PostRepositoryImpl._getPostsFromCache`), and the cache has no real
+  /// pagination concept, it always returns the *entire* cached set. Without
+  /// this filter, that fallback would re-append every post already on
+  /// screen. Filtering here is cheap and correct regardless of exactly why
+  /// a duplicate might show up, so it stays even if the cache gains real
+  /// pagination later.
   @action
   Future<void> loadMore() async {
     if (isLoadingMore || isLoadingFeed || _nextCursor == null) {
@@ -180,7 +190,11 @@ abstract class _PostsStore with Store {
     result.match(
       (failure) => feedError = failure,
       (page) {
-        posts.addAll(page.items);
+        final existingIds = posts.map((post) => post.id).toSet();
+        final newPosts = page.items
+            .where((post) => !existingIds.contains(post.id))
+            .toList();
+        posts.addAll(newPosts);
         _nextCursor = page.nextCursor;
       },
     );

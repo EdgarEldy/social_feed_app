@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fpdart/fpdart.dart' show Either;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mobx/mobx.dart';
@@ -71,6 +73,14 @@ abstract class _AuthStore with Store {
     required this._signOutUseCase,
     required this._tokenStorage,
     required this._googleSignIn,
+    // The analyzer's unused_element_parameter check does not trace call
+    // sites through `AuthStore(...)`, the compiler-generated forwarding
+    // constructor for the `class AuthStore = _AuthStore with _$AuthStore`
+    // mixin application above; it only looks for direct `_AuthStore(...)`
+    // calls, which no code makes. injection_container.dart does supply this
+    // parameter via `AuthStore(...)`, see its own comment for why.
+    // ignore: unused_element_parameter
+    this._deregisterPushToken,
   });
 
   final SignUpUseCase _signUpUseCase;
@@ -79,6 +89,25 @@ abstract class _AuthStore with Store {
   final SignOutUseCase _signOutUseCase;
   final SecureTokenStorage _tokenStorage;
   final GoogleSignIn _googleSignIn;
+
+  /// Deregisters this device's push token on sign-out, if push
+  /// notifications (feature/integrations, bonus) were wired up.
+  ///
+  /// A callback rather than a direct `PushNotificationService` dependency,
+  /// for the same circular-dependency reason `DioClient.create`'s
+  /// `onSessionExpired` callback exists (see `injection_container.dart`'s
+  /// `_defaultDioFactory` doc): `PushNotificationService` depends on
+  /// `GoRouter`, which itself depends on `AuthStore`. A direct
+  /// `PushNotificationService` field here would make constructing
+  /// `AuthStore` re-enter its own not-yet-finished construction the first
+  /// time `get_it` resolves it. Resolving `getIt<PushNotificationService>()`
+  /// lazily inside this closure, only when [signOut]/[forceSignOut] actually
+  /// run, breaks that cycle since every registration exists by then.
+  ///
+  /// Optional and nullable, rather than required like the fields above, so
+  /// every existing test that constructs an `AuthStore` directly (none of
+  /// which care about push notifications) does not need to also supply one.
+  final Future<void> Function()? _deregisterPushToken;
 
   /// Whether [_googleSignIn] has already had `initialize()` called on it.
   ///
@@ -250,6 +279,13 @@ abstract class _AuthStore with Store {
     lastError = null;
     isSubmitting = true;
     final result = await _signOutUseCase();
+    // Awaited, and deliberately before _clearSession() below: DELETE
+    // /devices/:pushToken is an authenticated endpoint, so it needs to run
+    // while this device's access token (cleared as part of _clearSession())
+    // is still valid. It cannot fail this method or leave the user stuck,
+    // though: PushNotificationService.deregister() swallows its own
+    // failures, so this is best-effort despite being awaited.
+    await _deregisterPushToken?.call();
     result.match((failure) => lastError = failure, (_) => _clearSession());
     isSubmitting = false;
   }
@@ -266,6 +302,17 @@ abstract class _AuthStore with Store {
   void forceSignOut() {
     lastError = null;
     _clearSession();
+    // A 401 that survives a silent refresh means this device's session is
+    // gone server-side too, so it should stop receiving push notifications
+    // meant for whoever is signed in next; same best-effort reasoning as
+    // signOut() above. forceSignOut() itself stays synchronous (it is
+    // invoked from AuthInterceptor's onSessionExpired callback, a plain
+    // `void Function()`), so this call is fire-and-forget rather than
+    // awaited.
+    final deregister = _deregisterPushToken;
+    if (deregister != null) {
+      unawaited(deregister());
+    }
   }
 
   /// Replaces [currentUser] with [user], typically after a successful

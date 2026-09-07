@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'app/app.dart';
 import 'core/di/injection_container.dart';
+import 'core/sync/sync_service.dart';
 import 'features/auth/presentation/stores/auth_store.dart';
 
 Future<void> main() async {
@@ -24,6 +25,13 @@ Future<void> main() async {
     // means) before the widget tree, and with it go_router's first redirect
     // decision, is built.
     await getIt<AuthStore>().restoreSession();
+
+    // SyncService is a registerLazySingleton, so nothing constructs it (and
+    // with it, calls .start() to begin watching ConnectivityStore) until
+    // something resolves it. It has no widget of its own the way
+    // ConnectivityStore does through ConnectivityAwareOfflineBanner, so it
+    // is resolved here explicitly, once, before the widget tree is built.
+    getIt<SyncService>();
 
     runApp(App());
   } catch (error) {

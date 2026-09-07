@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 /// A centered, app-wide loading spinner.
 ///
 /// A thin wrapper around [CircularProgressIndicator] so every screen shows
@@ -17,7 +19,7 @@ class LoadingIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: CircularProgressIndicator(
-        semanticsLabel: semanticsLabel ?? 'Loading',
+        semanticsLabel: semanticsLabel ?? AppLocalizations.of(context)!.loadingLabel,
       ),
     );
   }

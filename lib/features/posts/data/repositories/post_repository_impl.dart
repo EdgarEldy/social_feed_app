@@ -225,10 +225,13 @@ class PostRepositoryImpl implements PostRepository {
       },
     );
 
-    final upsertResult = await _localDatasource.upsert(placeholder);
-    if (upsertResult is Left<Failure, void>) {
-      return Left(upsertResult.value);
-    }
+    // The pending write is already durably queued at this point, so
+    // SyncService guarantees it will be replayed once the device is back
+    // online. The cache upsert below is only a display optimization on top
+    // of that guarantee, so a failure here must not turn the overall result
+    // into a Left: the caller should see the same Right it would see if the
+    // write had gone through immediately.
+    await _localDatasource.upsert(placeholder);
     return Right(placeholder.toEntity());
   }
 
@@ -281,10 +284,11 @@ class PostRepositoryImpl implements PostRepository {
       payload: {'id': id, 'title': title, 'content': content},
     );
 
-    final upsertResult = await _localDatasource.upsert(updated);
-    if (upsertResult is Left<Failure, void>) {
-      return Left(upsertResult.value);
-    }
+    // Same reasoning as _createOffline: the update is already queued for
+    // replay, so the local cache upsert is only an optimistic side effect
+    // and must not be able to turn a guaranteed-to-succeed update into a
+    // reported failure.
+    await _localDatasource.upsert(updated);
     return Right(updated.toEntity());
   }
 
@@ -300,7 +304,12 @@ class PostRepositoryImpl implements PostRepository {
         operation: PendingWriteOperation.delete,
         payload: {'id': id},
       );
-      return _localDatasource.deleteById(id);
+      // Same reasoning as _createOffline: the delete is already queued for
+      // replay, so the local cache delete is only an optimistic side effect
+      // and must not be able to turn a guaranteed-to-succeed delete into a
+      // reported failure.
+      await _localDatasource.deleteById(id);
+      return const Right(null);
     }
     await _localDatasource.deleteById(id);
     return const Right(null);

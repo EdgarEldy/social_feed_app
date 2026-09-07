@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 
 import '../../../../app/theme/app_dimens.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../stores/like_store.dart';
 
 /// How long the heart takes to scale up and back down when [LikeStore.isLiked]
@@ -84,14 +85,15 @@ class _LikeButtonState extends State<LikeButton>
       builder: (_) {
         final isLiked = widget.store.isLiked;
         final likesCount = widget.store.likesCount;
+        final l10n = AppLocalizations.of(context)!;
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Semantics(
               button: true,
               label: isLiked
-                  ? '$likesCount likes. Unlike post'
-                  : '$likesCount likes. Like post',
+                  ? l10n.unlikePostSemanticLabel(likesCount)
+                  : l10n.likePostSemanticLabel(likesCount),
               child: IconButton(
                 onPressed: widget.store.isToggling ? null : _handleTap,
                 padding: EdgeInsets.zero,

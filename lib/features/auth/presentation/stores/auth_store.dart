@@ -1,10 +1,12 @@
 import 'package:fpdart/fpdart.dart' show Either;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mobx/mobx.dart';
 
 import '../../../../core/errors/failure.dart';
 import '../../../../core/storage/secure_token_storage.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/usecases/sign_in_usecase.dart';
+import '../../domain/usecases/sign_in_with_google_usecase.dart';
 import '../../domain/usecases/sign_out_usecase.dart';
 import '../../domain/usecases/sign_up_usecase.dart';
 
@@ -65,14 +67,27 @@ abstract class _AuthStore with Store {
   _AuthStore({
     required this._signUpUseCase,
     required this._signInUseCase,
+    required this._signInWithGoogleUseCase,
     required this._signOutUseCase,
     required this._tokenStorage,
+    required this._googleSignIn,
   });
 
   final SignUpUseCase _signUpUseCase;
   final SignInUseCase _signInUseCase;
+  final SignInWithGoogleUseCase _signInWithGoogleUseCase;
   final SignOutUseCase _signOutUseCase;
   final SecureTokenStorage _tokenStorage;
+  final GoogleSignIn _googleSignIn;
+
+  /// Whether [_googleSignIn] has already had `initialize()` called on it.
+  ///
+  /// `GoogleSignIn.initialize()` must be called exactly once, and awaited,
+  /// before any other method on the singleton instance is used; this flag
+  /// is what lets [signInWithGoogle] call it lazily on first use instead of
+  /// requiring `configureDependencies()` itself to become `async` just for
+  /// this one bonus flow.
+  bool _isGoogleSignInInitialized = false;
 
   /// The signed-in user's profile, once known.
   ///
@@ -174,6 +189,52 @@ abstract class _AuthStore with Store {
     final result = await _signInUseCase(email: email, password: password);
     _applyAuthResult(result);
     isSubmitting = false;
+  }
+
+  /// Drives Google's native account picker and, on success, signs the
+  /// chosen account in via `POST /auth/google`.
+  ///
+  /// Mirrors [signIn] end to end: it clears [lastError], flips
+  /// [isSubmitting], and on a successful result updates [currentUser]/
+  /// [hasStoredSession] the exact same way through [_applyAuthResult], so
+  /// there is no separate "Google session" state anywhere in this store. If
+  /// the picked account's email already exists under a password-based
+  /// account, `SignInWithGoogleUseCase` returns whatever `Left` the server
+  /// sent back, and it surfaces through [lastError] like any other auth
+  /// failure; there is no silent-merge branch here.
+  ///
+  /// A user cancelling the Google account picker throws a
+  /// [GoogleSignInException] with [GoogleSignInExceptionCode.canceled]; that
+  /// case is swallowed rather than surfaced as [lastError], since backing
+  /// out of the picker is not really a failure to report.
+  @action
+  Future<void> signInWithGoogle() async {
+    lastError = null;
+    isSubmitting = true;
+    try {
+      if (!_isGoogleSignInInitialized) {
+        await _googleSignIn.initialize();
+        _isGoogleSignInInitialized = true;
+      }
+
+      final account = await _googleSignIn.authenticate();
+      final idToken = account.authentication.idToken;
+      if (idToken == null) {
+        lastError = const ValidationFailure(
+          'Google sign-in did not return an ID token.',
+        );
+        return;
+      }
+
+      final result = await _signInWithGoogleUseCase(idToken: idToken);
+      _applyAuthResult(result);
+    } on GoogleSignInException catch (e) {
+      if (e.code != GoogleSignInExceptionCode.canceled) {
+        lastError = ServerFailure(e.description ?? 'Google sign-in failed.');
+      }
+    } finally {
+      isSubmitting = false;
+    }
   }
 
   /// Signs the current user out, clearing both the stored tokens and the

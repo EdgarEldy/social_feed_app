@@ -1,11 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:social_feed_app/core/errors/failure.dart';
 import 'package:social_feed_app/core/storage/secure_token_storage.dart';
 import 'package:social_feed_app/features/auth/domain/entities/user.dart';
 import 'package:social_feed_app/features/auth/domain/usecases/sign_in_usecase.dart';
+import 'package:social_feed_app/features/auth/domain/usecases/sign_in_with_google_usecase.dart';
 import 'package:social_feed_app/features/auth/domain/usecases/sign_out_usecase.dart';
 import 'package:social_feed_app/features/auth/domain/usecases/sign_up_usecase.dart';
 import 'package:social_feed_app/features/auth/presentation/stores/auth_store.dart';
@@ -14,15 +16,24 @@ class _MockSignUpUseCase extends Mock implements SignUpUseCase {}
 
 class _MockSignInUseCase extends Mock implements SignInUseCase {}
 
+class _MockSignInWithGoogleUseCase extends Mock
+    implements SignInWithGoogleUseCase {}
+
 class _MockSignOutUseCase extends Mock implements SignOutUseCase {}
 
 class _MockSecureTokenStorage extends Mock implements SecureTokenStorage {}
 
+class _MockGoogleSignIn extends Mock implements GoogleSignIn {}
+
+class _MockGoogleSignInAccount extends Mock implements GoogleSignInAccount {}
+
 void main() {
   late _MockSignUpUseCase signUpUseCase;
   late _MockSignInUseCase signInUseCase;
+  late _MockSignInWithGoogleUseCase signInWithGoogleUseCase;
   late _MockSignOutUseCase signOutUseCase;
   late _MockSecureTokenStorage tokenStorage;
+  late _MockGoogleSignIn googleSignIn;
   late AuthStore authStore;
 
   final user = User(
@@ -35,13 +46,18 @@ void main() {
   setUp(() {
     signUpUseCase = _MockSignUpUseCase();
     signInUseCase = _MockSignInUseCase();
+    signInWithGoogleUseCase = _MockSignInWithGoogleUseCase();
     signOutUseCase = _MockSignOutUseCase();
     tokenStorage = _MockSecureTokenStorage();
+    googleSignIn = _MockGoogleSignIn();
+    when(() => googleSignIn.initialize()).thenAnswer((_) async {});
     authStore = AuthStore(
       signUpUseCase: signUpUseCase,
       signInUseCase: signInUseCase,
+      signInWithGoogleUseCase: signInWithGoogleUseCase,
       signOutUseCase: signOutUseCase,
       tokenStorage: tokenStorage,
+      googleSignIn: googleSignIn,
     );
   });
 
@@ -136,6 +152,62 @@ void main() {
       await authStore.signUp(email: 'a@a.com', password: 'x', displayName: 'A');
 
       expect(authStore.lastError, isNull);
+    });
+  });
+
+  group('signInWithGoogle', () {
+    test('populates currentUser and hasStoredSession on a successful exchange, the same way signIn does', () async {
+      final account = _MockGoogleSignInAccount();
+      when(() => account.authentication).thenReturn(
+        const GoogleSignInAuthentication(idToken: 'google-id-token'),
+      );
+      when(() => googleSignIn.authenticate()).thenAnswer((_) async => account);
+      when(
+        () => signInWithGoogleUseCase.call(idToken: 'google-id-token'),
+      ).thenAnswer((_) async => Right(user));
+
+      await authStore.signInWithGoogle();
+
+      expect(authStore.currentUser, user);
+      expect(authStore.hasStoredSession, isTrue);
+      expect(authStore.isAuthenticated, isTrue);
+      expect(authStore.lastError, isNull);
+      expect(authStore.isSubmitting, isFalse);
+    });
+
+    test('records the failure returned by the usecase without merging into an existing account', () async {
+      final account = _MockGoogleSignInAccount();
+      when(() => account.authentication).thenReturn(
+        const GoogleSignInAuthentication(idToken: 'google-id-token'),
+      );
+      when(() => googleSignIn.authenticate()).thenAnswer((_) async => account);
+      const failure = ServerFailure(
+        'An account with this email already exists.',
+        statusCode: 409,
+      );
+      when(
+        () => signInWithGoogleUseCase.call(idToken: 'google-id-token'),
+      ).thenAnswer((_) async => const Left(failure));
+
+      await authStore.signInWithGoogle();
+
+      expect(authStore.currentUser, isNull);
+      expect(authStore.isAuthenticated, isFalse);
+      expect(authStore.lastError, failure);
+    });
+
+    test('swallows a canceled account picker without setting lastError', () async {
+      when(() => googleSignIn.authenticate()).thenThrow(
+        const GoogleSignInException(code: GoogleSignInExceptionCode.canceled),
+      );
+
+      await authStore.signInWithGoogle();
+
+      expect(authStore.lastError, isNull);
+      expect(authStore.isAuthenticated, isFalse);
+      verifyNever(
+        () => signInWithGoogleUseCase.call(idToken: any(named: 'idToken')),
+      );
     });
   });
 

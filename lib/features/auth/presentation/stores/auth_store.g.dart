@@ -149,6 +149,16 @@ mixin _$AuthStore on _AuthStore, Store {
     );
   }
 
+  late final _$signInWithGoogleAsyncAction = AsyncAction(
+    '_AuthStore.signInWithGoogle',
+    context: context,
+  );
+
+  @override
+  Future<void> signInWithGoogle() {
+    return _$signInWithGoogleAsyncAction.run(() => super.signInWithGoogle());
+  }
+
   late final _$signOutAsyncAction = AsyncAction(
     '_AuthStore.signOut',
     context: context,

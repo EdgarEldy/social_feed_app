@@ -239,13 +239,28 @@ class PushNotificationService {
   /// Called from `AuthStore.signOut`/`forceSignOut` so a session that is no
   /// longer valid on this device does not keep receiving push notifications
   /// meant for whoever signs in next.
-  Future<void> deregister() async {
+  ///
+  /// [accessToken], when supplied, is attached directly as this one
+  /// request's `Authorization` header instead of relying on
+  /// `AuthInterceptor`'s usual storage-backed attachment. `forceSignOut`
+  /// needs this: by the time it runs, `AuthInterceptor` has already cleared
+  /// the stored access token, so `onRequest` would otherwise have nothing
+  /// left to attach and this authenticated call would 401. `signOut` does
+  /// not need to pass one, since it deregisters before the stored token is
+  /// cleared and the interceptor's normal path already has a valid token to
+  /// attach.
+  Future<void> deregister({String? accessToken}) async {
     final token = _registeredToken;
     if (token == null) {
       return;
     }
     try {
-      await _dio.delete<void>(ApiEndpoints.deviceByPushToken(token));
+      await _dio.delete<void>(
+        ApiEndpoints.deviceByPushToken(token),
+        options: accessToken == null
+            ? null
+            : Options(headers: {'Authorization': 'Bearer $accessToken'}),
+      );
     } on DioException {
       // Best-effort, same reasoning as _registerToken above.
     } finally {

@@ -145,8 +145,11 @@ class CommentRepositoryImpl implements CommentRepository {
       return Left(cacheResult.value);
     }
     final models = (cacheResult as Right<Failure, List<CommentModel>>).value;
+    // Comments are oldest first everywhere else in this feature (see
+    // CommentsStore.comments), unlike posts, which are newest first. The
+    // cache fallback has to match the online path's ordering.
     final sorted = [...models]
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return Right(
       PaginatedResult(
         items: sorted.map((model) => model.toEntity()).toList(),
@@ -201,10 +204,13 @@ class CommentRepositoryImpl implements CommentRepository {
       },
     );
 
-    final upsertResult = await _localDatasource.upsert(placeholder);
-    if (upsertResult is Left<Failure, void>) {
-      return Left(upsertResult.value);
-    }
+    // The pending write is already durably queued at this point, so
+    // SyncService guarantees it will be replayed once the device is back
+    // online. The cache upsert below is only a display optimization on top
+    // of that guarantee, so a failure here must not turn the overall result
+    // into a Left: the caller should see the same Right it would see if the
+    // write had gone through immediately.
+    await _localDatasource.upsert(placeholder);
     return Right(placeholder.toEntity());
   }
 
@@ -220,7 +226,12 @@ class CommentRepositoryImpl implements CommentRepository {
         operation: PendingWriteOperation.delete,
         payload: {'id': id},
       );
-      return _localDatasource.deleteById(id);
+      // Same reasoning as _addCommentOffline: the delete is already queued
+      // for replay, so the local cache delete is only an optimistic side
+      // effect and must not be able to turn a guaranteed-to-succeed delete
+      // into a reported failure.
+      await _localDatasource.deleteById(id);
+      return const Right(null);
     }
     await _localDatasource.deleteById(id);
     return const Right(null);

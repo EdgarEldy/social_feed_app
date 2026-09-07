@@ -250,6 +250,34 @@ void main() {
       expect(authStore.isAuthenticated, isTrue);
       expect(authStore.lastError, const NetworkFailure('No connection to the server.'));
     });
+
+    test('deregisters the push token before calling the sign-out usecase', () async {
+      // Regression test: SignOutUseCase clears the stored access token
+      // before returning, so DELETE /devices/:pushToken (an authenticated
+      // endpoint) has to fire while that token is still there for
+      // AuthInterceptor to attach. Asserting call order, not just that it
+      // was called, is what actually locks that in.
+      final callOrder = <String>[];
+      final storeWithPush = AuthStore(
+        signUpUseCase: signUpUseCase,
+        signInUseCase: signInUseCase,
+        signInWithGoogleUseCase: signInWithGoogleUseCase,
+        signOutUseCase: signOutUseCase,
+        tokenStorage: tokenStorage,
+        googleSignIn: googleSignIn,
+        deregisterPushToken: ({String? accessToken}) async {
+          callOrder.add('deregister:$accessToken');
+        },
+      );
+      when(() => signOutUseCase.call()).thenAnswer((_) async {
+        callOrder.add('signOutUseCase');
+        return const Right(null);
+      });
+
+      await storeWithPush.signOut();
+
+      expect(callOrder, ['deregister:null', 'signOutUseCase']);
+    });
   });
 
   group('forceSignOut', () {
@@ -262,6 +290,35 @@ void main() {
       expect(authStore.hasStoredSession, isFalse);
       expect(authStore.isAuthenticated, isFalse);
       verifyNever(() => signOutUseCase.call());
+    });
+
+    test('deregisters the push token with the expired access token it was given', () async {
+      // Regression test: by the time forceSignOut runs, AuthInterceptor has
+      // already cleared the stored access token, so the expired one has to
+      // be passed through explicitly rather than left for
+      // PushNotificationService to (fail to) look up itself.
+      String? capturedAccessToken;
+      var deregisterCalled = false;
+      final storeWithPush = AuthStore(
+        signUpUseCase: signUpUseCase,
+        signInUseCase: signInUseCase,
+        signInWithGoogleUseCase: signInWithGoogleUseCase,
+        signOutUseCase: signOutUseCase,
+        tokenStorage: tokenStorage,
+        googleSignIn: googleSignIn,
+        deregisterPushToken: ({String? accessToken}) async {
+          deregisterCalled = true;
+          capturedAccessToken = accessToken;
+        },
+      );
+
+      storeWithPush.forceSignOut('expired-access-token');
+      // forceSignOut fires the deregister call unawaited (fire-and-forget),
+      // so the microtask it schedules needs a beat to actually run.
+      await Future<void>.delayed(Duration.zero);
+
+      expect(deregisterCalled, isTrue);
+      expect(capturedAccessToken, 'expired-access-token');
     });
   });
 

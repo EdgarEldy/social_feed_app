@@ -107,7 +107,13 @@ abstract class _AuthStore with Store {
   /// Optional and nullable, rather than required like the fields above, so
   /// every existing test that constructs an `AuthStore` directly (none of
   /// which care about push notifications) does not need to also supply one.
-  final Future<void> Function()? _deregisterPushToken;
+  ///
+  /// Takes an optional explicit access token because [forceSignOut] needs
+  /// to pass the one that was valid immediately before this session was
+  /// invalidated: by the time it runs, `AuthInterceptor` has already
+  /// cleared the stored one. [signOut] does not need to pass one; it
+  /// deregisters before the stored token is cleared.
+  final Future<void> Function({String? accessToken})? _deregisterPushToken;
 
   /// Whether [_googleSignIn] has already had `initialize()` called on it.
   ///
@@ -278,14 +284,15 @@ abstract class _AuthStore with Store {
   Future<void> signOut() async {
     lastError = null;
     isSubmitting = true;
-    final result = await _signOutUseCase();
-    // Awaited, and deliberately before _clearSession() below: DELETE
-    // /devices/:pushToken is an authenticated endpoint, so it needs to run
-    // while this device's access token (cleared as part of _clearSession())
-    // is still valid. It cannot fail this method or leave the user stuck,
-    // though: PushNotificationService.deregister() swallows its own
-    // failures, so this is best-effort despite being awaited.
+    // Awaited, and deliberately before _signOutUseCase() below: DELETE
+    // /devices/:pushToken is an authenticated endpoint, and SignOutUseCase
+    // unconditionally clears the stored access token before returning, so
+    // deregistering has to happen while that token is still there for
+    // AuthInterceptor to attach. It cannot fail this method or leave the
+    // user stuck, though: PushNotificationService.deregister() swallows its
+    // own failures, so this is best-effort despite being awaited.
     await _deregisterPushToken?.call();
+    final result = await _signOutUseCase();
     result.match((failure) => lastError = failure, (_) => _clearSession());
     isSubmitting = false;
   }
@@ -299,19 +306,22 @@ abstract class _AuthStore with Store {
   /// sign-out"), where the tokens are already cleared by the interceptor
   /// itself and only the in-memory store still needs to catch up.
   @action
-  void forceSignOut() {
+  void forceSignOut([String? expiredAccessToken]) {
     lastError = null;
     _clearSession();
     // A 401 that survives a silent refresh means this device's session is
     // gone server-side too, so it should stop receiving push notifications
     // meant for whoever is signed in next; same best-effort reasoning as
     // signOut() above. forceSignOut() itself stays synchronous (it is
-    // invoked from AuthInterceptor's onSessionExpired callback, a plain
-    // `void Function()`), so this call is fire-and-forget rather than
-    // awaited.
+    // invoked from AuthInterceptor's onSessionExpired callback), so this
+    // call is fire-and-forget rather than awaited. expiredAccessToken is
+    // the access token AuthInterceptor captured immediately before
+    // clearing it, passed through explicitly since by this point the
+    // stored token is already gone and AuthInterceptor's usual attachment
+    // would have nothing left to attach to this authenticated call.
     final deregister = _deregisterPushToken;
     if (deregister != null) {
-      unawaited(deregister());
+      unawaited(deregister(accessToken: expiredAccessToken));
     }
   }
 

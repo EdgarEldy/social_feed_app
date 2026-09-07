@@ -735,16 +735,16 @@ Comments list, creation, deletion, keyboard and focus handling.
 
 ### Tasks
 
-- [ ] Create `CommentRemoteDatasource` (`GET /posts/:postId/comments`, `POST /posts/:postId/comments`, `DELETE /comments/:id`)
-- [ ] Create `CommentLocalDatasource` (`sqflite` CRUD on `comments_cache`), `CommentRepositoryImpl`
-- [ ] Create usecases: `GetCommentsUseCase`, `AddCommentUseCase`, `DeleteCommentUseCase`
-- [ ] Create `CommentsStore` (`@observable ObservableList<Comment> comments`, `@action` for load/add/delete, refreshed after each mutation), instantiated per `PostDetailPage` and disposed with it
-- [ ] Build `CommentsSection` with a `ListView` and `timeago` relative dates
-- [ ] Open comment input in a modal `showModalBottomSheet` with an auto-focused `FocusNode`
-- [ ] Handle keyboard resizing (`resizeToAvoidBottomInset`, `viewInsets`, `SafeArea`)
-- [ ] Business rule: a comment can be deleted by its author or by the post's author
-- [ ] Unit test: `AddCommentUseCase` rejects empty content
-- [ ] Widget test: submitting `CommentInput` calls the provider with the typed content and clears the field
+- [x] Create `CommentRemoteDatasource` (`GET /posts/:postId/comments`, `POST /posts/:postId/comments`, `DELETE /comments/:id`)
+- [x] Create `CommentLocalDatasource` (`sqflite` CRUD on `comments_cache`), `CommentRepositoryImpl`
+- [x] Create usecases: `GetCommentsUseCase`, `AddCommentUseCase`, `DeleteCommentUseCase`
+- [x] Create `CommentsStore` (`@observable ObservableList<Comment> comments`, `@action` for load/add/delete, refreshed after each mutation), instantiated per `PostDetailPage` and disposed with it
+- [x] Build `CommentsSection` with a `ListView` and `timeago` relative dates
+- [x] Open comment input in a modal `showModalBottomSheet` with an auto-focused `FocusNode`
+- [x] Handle keyboard resizing (`resizeToAvoidBottomInset`, `viewInsets`, `SafeArea`)
+- [x] Business rule: a comment can be deleted by its author or by the post's author
+- [x] Unit test: `AddCommentUseCase` rejects empty content
+- [x] Widget test: submitting `CommentInput` calls the provider with the typed content and clears the field
 
 ---
 

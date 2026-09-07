@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../app/theme/app_dimens.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../domain/entities/post.dart';
 import '../stores/posts_store.dart';
@@ -193,8 +194,11 @@ class _CreatePostForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(isEditMode ? 'Edit post' : 'Create post')),
+      appBar: AppBar(
+        title: Text(isEditMode ? l10n.editPostTitle : l10n.createPostTitle),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppDimens.spacingLg),
@@ -206,8 +210,9 @@ class _CreatePostForm extends StatelessWidget {
                 TextFormField(
                   controller: titleController,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                  validator: PostValidators.validateTitle,
+                  decoration: InputDecoration(labelText: l10n.titleFieldLabel),
+                  validator: (value) =>
+                      PostValidators.validateTitle(context, value),
                 ),
                 const SizedBox(height: AppDimens.spacingMd),
                 TextFormField(
@@ -215,8 +220,9 @@ class _CreatePostForm extends StatelessWidget {
                   minLines: 4,
                   maxLines: 8,
                   textInputAction: TextInputAction.newline,
-                  decoration: const InputDecoration(labelText: 'Content'),
-                  validator: PostValidators.validateContent,
+                  decoration: InputDecoration(labelText: l10n.contentFieldLabel),
+                  validator: (value) =>
+                      PostValidators.validateContent(context, value),
                 ),
                 if (!isEditMode) ...[
                   const SizedBox(height: AppDimens.spacingLg),
@@ -229,7 +235,7 @@ class _CreatePostForm extends StatelessWidget {
                   const SizedBox(height: AppDimens.spacingMd),
                   LinearProgressIndicator(
                     value: uploadProgress == 0 ? null : uploadProgress,
-                    semanticsLabel: 'Post upload progress',
+                    semanticsLabel: l10n.postUploadProgressLabel,
                   ),
                 ],
                 if (error != null) ...[
@@ -242,8 +248,8 @@ class _CreatePostForm extends StatelessWidget {
                 const SizedBox(height: AppDimens.spacingLg),
                 AppButton(
                   label: isSubmitting
-                      ? (isEditMode ? 'Saving...' : 'Publishing...')
-                      : (isEditMode ? 'Save' : 'Publish'),
+                      ? (isEditMode ? l10n.savingButtonLabel : l10n.publishingButtonLabel)
+                      : (isEditMode ? l10n.saveButtonLabel : l10n.publishButtonLabel),
                   onPressed: isSubmitting ? null : onSubmit,
                 ),
               ],
@@ -271,11 +277,12 @@ class _PostImagePickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Semantics(
       button: true,
       label: image == null
-          ? 'Add a photo to this post'
-          : 'Change the post photo',
+          ? l10n.addPhotoSemanticLabel
+          : l10n.changePhotoSemanticLabel,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppDimens.radiusMd),
@@ -289,13 +296,13 @@ class _PostImagePickerField extends StatelessWidget {
                 : DecorationImage(image: FileImage(image!), fit: BoxFit.cover),
           ),
           child: image == null
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add_photo_alternate_outlined),
-                      SizedBox(height: AppDimens.spacingXs),
-                      Text('Add a photo (optional)'),
+                      const Icon(Icons.add_photo_alternate_outlined),
+                      const SizedBox(height: AppDimens.spacingXs),
+                      Text(l10n.addPhotoOptionalLabel),
                     ],
                   ),
                 )
@@ -313,6 +320,7 @@ class _PostImagePickerField extends StatelessWidget {
 /// [_PostImagePickerField]'s doc for why it is duplicated rather than
 /// shared.
 Future<ImageSource?> _showImageSourceSheet(BuildContext context) {
+  final l10n = AppLocalizations.of(context)!;
   return showModalBottomSheet<ImageSource>(
     context: context,
     builder: (sheetContext) {
@@ -322,12 +330,12 @@ Future<ImageSource?> _showImageSourceSheet(BuildContext context) {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera),
-              title: const Text('Take a photo'),
+              title: Text(l10n.takePhotoLabel),
               onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from gallery'),
+              title: Text(l10n.chooseFromGalleryLabel),
               onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
             ),
           ],

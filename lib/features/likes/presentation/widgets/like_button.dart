@@ -83,17 +83,22 @@ class _LikeButtonState extends State<LikeButton>
     return Observer(
       builder: (_) {
         final isLiked = widget.store.isLiked;
+        final likesCount = widget.store.likesCount;
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Semantics(
               button: true,
-              label: isLiked ? 'Unlike post' : 'Like post',
+              label: isLiked
+                  ? '$likesCount likes. Unlike post'
+                  : '$likesCount likes. Like post',
               child: IconButton(
                 onPressed: widget.store.isToggling ? null : _handleTap,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(
+                  minWidth: AppDimens.spacingXxl,
+                  minHeight: AppDimens.spacingXxl,
+                ),
                 icon: AnimatedSwitcher(
                   duration: _heartScaleDuration,
                   transitionBuilder: (child, animation) => ScaleTransition(
@@ -110,7 +115,9 @@ class _LikeButtonState extends State<LikeButton>
               ),
             ),
             const SizedBox(width: AppDimens.spacingXs),
-            Text('${widget.store.likesCount}', style: theme.textTheme.bodySmall),
+            ExcludeSemantics(
+              child: Text('$likesCount', style: theme.textTheme.bodySmall),
+            ),
           ],
         );
       },

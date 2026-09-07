@@ -1,0 +1,332 @@
+{
+  "@@locale": "en",
+  "appTitle": "SocialFeed",
+  "@appTitle": {
+    "description": "The application name, shown as the OS task/window title."
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Label for a generic retry action, used by ErrorView."
+  },
+  "offlineMessage": "You're offline. Showing cached data.",
+  "@offlineMessage": {
+    "description": "Shown in OfflineBanner while the device has no connectivity."
+  },
+
+  "loginPageTitle": "Log in",
+  "@loginPageTitle": {
+    "description": "Title shown on LoginPage's app bar."
+  },
+  "registerPageTitle": "Sign up",
+  "@registerPageTitle": {
+    "description": "Title shown on RegisterPage's app bar."
+  },
+  "emailFieldLabel": "Email",
+  "@emailFieldLabel": {
+    "description": "Label for the email text field on the login and register forms."
+  },
+  "passwordFieldLabel": "Password",
+  "@passwordFieldLabel": {
+    "description": "Label for the password text field on the login and register forms."
+  },
+  "displayNameFieldLabel": "Display name",
+  "@displayNameFieldLabel": {
+    "description": "Label for the display name text field on the register and edit-profile forms."
+  },
+  "signInButtonLabel": "Sign in",
+  "@signInButtonLabel": {
+    "description": "Label for the submit button on LoginPage."
+  },
+  "signingInButtonLabel": "Signing in...",
+  "@signingInButtonLabel": {
+    "description": "Label shown on the sign-in button while the request is in flight."
+  },
+  "signUpButtonLabel": "Sign up",
+  "@signUpButtonLabel": {
+    "description": "Label for the submit button on RegisterPage."
+  },
+  "creatingAccountButtonLabel": "Creating account...",
+  "@creatingAccountButtonLabel": {
+    "description": "Label shown on the sign-up button while the request is in flight."
+  },
+  "continueWithGoogleButtonLabel": "Continue with Google",
+  "@continueWithGoogleButtonLabel": {
+    "description": "Label for the secondary button on LoginPage that starts the Google sign-in flow."
+  },
+  "noAccountPrompt": "Don't have an account? Sign up",
+  "@noAccountPrompt": {
+    "description": "Link on LoginPage inviting a user without an account to register."
+  },
+  "haveAccountPrompt": "Already have an account? Log in",
+  "@haveAccountPrompt": {
+    "description": "Link on RegisterPage inviting a user with an account to log in."
+  },
+  "emailRequiredError": "Email is required.",
+  "@emailRequiredError": {
+    "description": "Validation error when the email field is left empty."
+  },
+  "emailInvalidError": "Enter a valid email address.",
+  "@emailInvalidError": {
+    "description": "Validation error when the email field does not look like a valid address."
+  },
+  "passwordRequiredError": "Password is required.",
+  "@passwordRequiredError": {
+    "description": "Validation error when the password field is left empty."
+  },
+  "passwordTooShortError": "Password must be at least {minLength} characters.",
+  "@passwordTooShortError": {
+    "description": "Validation error when the password is shorter than the minimum length.",
+    "placeholders": {
+      "minLength": {
+        "type": "int"
+      }
+    }
+  },
+  "displayNameRequiredError": "Display name is required.",
+  "@displayNameRequiredError": {
+    "description": "Validation error when the display name field is left empty."
+  },
+  "titleRequiredError": "Title is required.",
+  "@titleRequiredError": {
+    "description": "Validation error when the post title field is left empty."
+  },
+  "contentRequiredError": "Content is required.",
+  "@contentRequiredError": {
+    "description": "Validation error when the post content field is left empty."
+  },
+
+  "profileTitle": "Profile",
+  "@profileTitle": {
+    "description": "Title shown on the profile page's app bar, and the bottom navigation tab label for the profile tab."
+  },
+  "editProfileTitle": "Edit profile",
+  "@editProfileTitle": {
+    "description": "Title shown on EditProfilePage's app bar."
+  },
+  "editProfileTooltip": "Edit profile",
+  "@editProfileTooltip": {
+    "description": "Tooltip for the icon button that opens EditProfilePage from ProfilePage."
+  },
+  "profileNotLoadedMessage": "Your profile has not loaded yet. Sign out and back in to refresh it.",
+  "@profileNotLoadedMessage": {
+    "description": "Shown instead of the profile form when the signed-in user's profile has not been loaded into AuthStore yet."
+  },
+  "saveButtonLabel": "Save",
+  "@saveButtonLabel": {
+    "description": "Label for a save/submit button on the edit-profile and edit-post forms."
+  },
+  "savingButtonLabel": "Saving...",
+  "@savingButtonLabel": {
+    "description": "Label shown on the save button while the request is in flight."
+  },
+  "changeAvatarSemanticLabel": "Change avatar",
+  "@changeAvatarSemanticLabel": {
+    "description": "Semantics label for the tappable avatar preview that opens the image picker."
+  },
+  "takePhotoLabel": "Take a photo",
+  "@takePhotoLabel": {
+    "description": "Label for the bottom sheet option that opens the camera."
+  },
+  "chooseFromGalleryLabel": "Choose from gallery",
+  "@chooseFromGalleryLabel": {
+    "description": "Label for the bottom sheet option that opens the photo gallery."
+  },
+  "avatarUploadProgressLabel": "Avatar upload progress",
+  "@avatarUploadProgressLabel": {
+    "description": "Semantics label for the avatar upload progress indicator."
+  },
+  "uploadingAvatarLabel": "Uploading avatar",
+  "@uploadingAvatarLabel": {
+    "description": "Semantics label for the spinner overlay shown on the avatar while it uploads."
+  },
+  "profilePhotoSemanticLabel": "Profile photo of {name}",
+  "@profilePhotoSemanticLabel": {
+    "description": "Semantics label for a user's profile photo, with their display name substituted in.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "loadingProfileLabel": "Loading profile",
+  "@loadingProfileLabel": {
+    "description": "Semantics label for the loading indicator shown while a profile loads."
+  },
+
+  "feedTitle": "Feed",
+  "@feedTitle": {
+    "description": "Title shown on the feed page's app bar, and the bottom navigation tab label for the feed tab."
+  },
+  "createPostTooltip": "Create a post",
+  "@createPostTooltip": {
+    "description": "Tooltip for the floating action button that opens the create-post form."
+  },
+  "loadingFeedLabel": "Loading feed",
+  "@loadingFeedLabel": {
+    "description": "Semantics label for the loading indicator shown while the first page of the feed loads."
+  },
+  "loadingMorePostsLabel": "Loading more posts",
+  "@loadingMorePostsLabel": {
+    "description": "Semantics label for the loading indicator shown while the next page of the feed loads."
+  },
+  "offlineNoPostsMessage": "You're offline and no posts are cached yet.",
+  "@offlineNoPostsMessage": {
+    "description": "Empty-feed message shown when the device is offline and nothing is cached yet."
+  },
+  "noPostsMessage": "No posts yet. Be the first to share something.",
+  "@noPostsMessage": {
+    "description": "Empty-feed message shown when there genuinely are no posts yet."
+  },
+  "postDetailTitle": "Post",
+  "@postDetailTitle": {
+    "description": "Title shown on PostDetailPage's app bar."
+  },
+  "editPostTitle": "Edit post",
+  "@editPostTitle": {
+    "description": "Title shown on the create-post form's app bar while editing an existing post."
+  },
+  "createPostTitle": "Create post",
+  "@createPostTitle": {
+    "description": "Title shown on the create-post form's app bar while creating a new post."
+  },
+  "titleFieldLabel": "Title",
+  "@titleFieldLabel": {
+    "description": "Label for the post title text field."
+  },
+  "contentFieldLabel": "Content",
+  "@contentFieldLabel": {
+    "description": "Label for the post content text field."
+  },
+  "postUploadProgressLabel": "Post upload progress",
+  "@postUploadProgressLabel": {
+    "description": "Semantics label for the progress indicator shown while a new post's image uploads."
+  },
+  "publishButtonLabel": "Publish",
+  "@publishButtonLabel": {
+    "description": "Label for the submit button when creating a new post."
+  },
+  "publishingButtonLabel": "Publishing...",
+  "@publishingButtonLabel": {
+    "description": "Label shown on the publish button while the request is in flight."
+  },
+  "addPhotoOptionalLabel": "Add a photo (optional)",
+  "@addPhotoOptionalLabel": {
+    "description": "Placeholder copy shown in the empty post image picker."
+  },
+  "addPhotoSemanticLabel": "Add a photo to this post",
+  "@addPhotoSemanticLabel": {
+    "description": "Semantics label for the post image picker when no image has been chosen yet."
+  },
+  "changePhotoSemanticLabel": "Change the post photo",
+  "@changePhotoSemanticLabel": {
+    "description": "Semantics label for the post image picker once an image has been chosen."
+  },
+  "editMenuItemLabel": "Edit",
+  "@editMenuItemLabel": {
+    "description": "Label for the edit action in a post's author menu."
+  },
+  "deleteMenuItemLabel": "Delete",
+  "@deleteMenuItemLabel": {
+    "description": "Label for the delete action in a post's author menu."
+  },
+  "postActionsTooltip": "Post actions",
+  "@postActionsTooltip": {
+    "description": "Tooltip for the post's author-only overflow menu button."
+  },
+  "addCommentTooltip": "Add comment",
+  "@addCommentTooltip": {
+    "description": "Tooltip for the floating action button that opens the add-comment sheet."
+  },
+  "postNotFoundMessage": "Post not found.",
+  "@postNotFoundMessage": {
+    "description": "Shown when a post id could not be resolved to an actual post."
+  },
+  "loadingPostLabel": "Loading post",
+  "@loadingPostLabel": {
+    "description": "Semantics label for the loading indicator shown while a single post loads."
+  },
+  "loadingPostImageLabel": "Loading post image",
+  "@loadingPostImageLabel": {
+    "description": "Semantics label for the loading indicator shown while a post's image downloads."
+  },
+  "authorProfilePhotoSemanticLabel": "{name}'s profile photo",
+  "@authorProfilePhotoSemanticLabel": {
+    "description": "Semantics label for a post or comment author's profile photo, with their display name substituted in.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "postImageSemanticLabel": "Photo attached to \"{title}\"",
+  "@postImageSemanticLabel": {
+    "description": "Semantics label for a post's attached image, with its title substituted in.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "commentsCountSemanticLabel": "{count} comments",
+  "@commentsCountSemanticLabel": {
+    "description": "Semantics label for a post's comment count, with the count substituted in.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "commentsHeading": "Comments",
+  "@commentsHeading": {
+    "description": "Section heading above the comment thread on PostDetailPage."
+  },
+  "noCommentsMessage": "No comments yet. Be the first to say something.",
+  "@noCommentsMessage": {
+    "description": "Shown when a post has no comments yet."
+  },
+  "loadingCommentsLabel": "Loading comments",
+  "@loadingCommentsLabel": {
+    "description": "Semantics label for the loading indicator shown while the first page of comments loads."
+  },
+  "loadingMoreCommentsLabel": "Loading more comments",
+  "@loadingMoreCommentsLabel": {
+    "description": "Semantics label for the loading indicator shown while the next page of comments loads."
+  },
+  "addCommentHint": "Add a comment...",
+  "@addCommentHint": {
+    "description": "Placeholder text in the comment input field."
+  },
+  "sendCommentTooltip": "Send comment",
+  "@sendCommentTooltip": {
+    "description": "Tooltip for the send button in the comment input."
+  },
+  "deleteCommentTooltip": "Delete comment",
+  "@deleteCommentTooltip": {
+    "description": "Tooltip for the delete button on a comment."
+  },
+
+  "likePostSemanticLabel": "{count} likes. Like post",
+  "@likePostSemanticLabel": {
+    "description": "Semantics label for the like button when the post is not currently liked, with the like count substituted in.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "unlikePostSemanticLabel": "{count} likes. Unlike post",
+  "@unlikePostSemanticLabel": {
+    "description": "Semantics label for the like button when the post is currently liked, with the like count substituted in.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "loadingLabel": "Loading",
+  "@loadingLabel": {
+    "description": "Default semantics label for LoadingIndicator when no more specific label is supplied."
+  }
+}

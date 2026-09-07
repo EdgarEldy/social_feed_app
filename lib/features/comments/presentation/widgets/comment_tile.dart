@@ -5,6 +5,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../../app/theme/app_dimens.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../auth/presentation/stores/auth_store.dart';
 import '../../domain/entities/comment.dart';
 import '../stores/comments_store.dart';
@@ -79,7 +80,8 @@ class CommentTile extends StatelessWidget {
             children: [
               Semantics(
                 image: true,
-                label: "${comment.authorName}'s profile photo",
+                label: AppLocalizations.of(context)!
+                    .authorProfilePhotoSemanticLabel(comment.authorName),
                 child: CircleAvatar(
                   radius: AppDimens.spacingMd,
                   backgroundImage: photoUrl == null
@@ -128,7 +130,7 @@ class CommentTile extends StatelessWidget {
                     : IconButton(
                         onPressed: () => _handleDelete(context),
                         icon: const Icon(Icons.delete_outline),
-                        tooltip: 'Delete comment',
+                        tooltip: AppLocalizations.of(context)!.deleteCommentTooltip,
                       ),
             ],
           ),

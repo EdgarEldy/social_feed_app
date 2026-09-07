@@ -6,6 +6,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:social_feed_app/core/errors/failure.dart';
+import 'package:social_feed_app/core/l10n/app_localizations.dart';
 import 'package:social_feed_app/features/likes/domain/usecases/toggle_like_usecase.dart';
 import 'package:social_feed_app/features/likes/presentation/stores/like_store.dart';
 import 'package:social_feed_app/features/likes/presentation/widgets/like_button.dart';
@@ -22,6 +23,8 @@ void main() {
   Future<void> pumpLikeButton(WidgetTester tester, LikeStore store) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(body: LikeButton(store: store, postId: 'post-1')),
       ),
     );

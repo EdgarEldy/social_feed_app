@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_dimens.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../auth/presentation/stores/auth_store.dart';
@@ -150,7 +151,8 @@ class _PostAuthorHeader extends StatelessWidget {
           children: [
             Semantics(
               image: true,
-              label: "${post.authorName}'s profile photo",
+              label: AppLocalizations.of(context)!
+                  .authorProfilePhotoSemanticLabel(post.authorName),
               child: CircleAvatar(
                 radius: AppDimens.spacingLg,
                 backgroundImage: photoUrl == null
@@ -192,9 +194,10 @@ class _PostAuthorMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert),
-      tooltip: 'Post actions',
+      tooltip: l10n.postActionsTooltip,
       onSelected: (value) {
         switch (value) {
           case 'edit':
@@ -203,9 +206,9 @@ class _PostAuthorMenu extends StatelessWidget {
             getIt<PostsStore>().deletePost(post.id);
         }
       },
-      itemBuilder: (context) => const [
-        PopupMenuItem(value: 'edit', child: Text('Edit')),
-        PopupMenuItem(value: 'delete', child: Text('Delete')),
+      itemBuilder: (context) => [
+        PopupMenuItem(value: 'edit', child: Text(l10n.editMenuItemLabel)),
+        PopupMenuItem(value: 'delete', child: Text(l10n.deleteMenuItemLabel)),
       ],
     );
   }
@@ -231,25 +234,31 @@ class _PostImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Hero(
-      tag: 'post-image-${post.id}',
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppDimens.radiusMd),
-        child: CachedNetworkImage(
-          imageUrl: imageUrl,
-          height: _postImageHeight,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => const SizedBox(
+    return Semantics(
+      image: true,
+      label: AppLocalizations.of(context)!.postImageSemanticLabel(post.title),
+      child: Hero(
+        tag: 'post-image-${post.id}',
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppDimens.radiusMd),
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
             height: _postImageHeight,
-            child: LoadingIndicator(semanticsLabel: 'Loading post image'),
-          ),
-          errorWidget: (context, url, error) => SizedBox(
-            height: _postImageHeight,
-            child: Center(
-              child: Icon(
-                Icons.broken_image_outlined,
-                color: Theme.of(context).colorScheme.error,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => SizedBox(
+              height: _postImageHeight,
+              child: LoadingIndicator(
+                semanticsLabel: AppLocalizations.of(context)!.loadingPostImageLabel,
+              ),
+            ),
+            errorWidget: (context, url, error) => SizedBox(
+              height: _postImageHeight,
+              child: Center(
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: Theme.of(context).colorScheme.error,
+                ),
               ),
             ),
           ),
@@ -289,9 +298,22 @@ class _PostStatsState extends State<_PostStats> {
     final theme = Theme.of(context);
     return Row(
       children: [
-        Icon(Icons.mode_comment_outlined, size: AppDimens.spacingMd),
-        const SizedBox(width: AppDimens.spacingXs),
-        Text('${widget.post.commentsCount}', style: theme.textTheme.bodySmall),
+        Semantics(
+          label: AppLocalizations.of(context)!
+              .commentsCountSemanticLabel(widget.post.commentsCount),
+          excludeSemantics: true,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.mode_comment_outlined, size: AppDimens.spacingMd),
+              const SizedBox(width: AppDimens.spacingXs),
+              Text(
+                '${widget.post.commentsCount}',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
         const SizedBox(width: AppDimens.spacingMd),
         LikeButton(store: _likeStore, postId: widget.post.id),
       ],

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_dimens.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../stores/auth_store.dart';
 import '../utils/auth_validators.dart';
@@ -48,10 +49,11 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AuthErrorListener(
       authStore: _authStore,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Sign up')),
+        appBar: AppBar(title: Text(l10n.registerPageTitle)),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(AppDimens.spacingLg),
@@ -64,8 +66,10 @@ class _RegisterPageState extends State<RegisterPage> {
                     controller: _displayNameController,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.name],
-                    decoration: const InputDecoration(labelText: 'Display name'),
-                    validator: AuthValidators.validateDisplayName,
+                    decoration:
+                        InputDecoration(labelText: l10n.displayNameFieldLabel),
+                    validator: (value) =>
+                        AuthValidators.validateDisplayName(context, value),
                   ),
                   const SizedBox(height: AppDimens.spacingMd),
                   TextFormField(
@@ -73,8 +77,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                     autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(labelText: 'Email'),
-                    validator: AuthValidators.validateEmail,
+                    decoration: InputDecoration(labelText: l10n.emailFieldLabel),
+                    validator: (value) =>
+                        AuthValidators.validateEmail(context, value),
                   ),
                   const SizedBox(height: AppDimens.spacingMd),
                   TextFormField(
@@ -82,22 +87,25 @@ class _RegisterPageState extends State<RegisterPage> {
                     obscureText: true,
                     textInputAction: TextInputAction.done,
                     autofillHints: const [AutofillHints.newPassword],
-                    decoration: const InputDecoration(labelText: 'Password'),
-                    validator: AuthValidators.validatePassword,
+                    decoration:
+                        InputDecoration(labelText: l10n.passwordFieldLabel),
+                    validator: (value) =>
+                        AuthValidators.validatePassword(context, value),
                     onFieldSubmitted: (_) => _submit(),
                   ),
                   const SizedBox(height: AppDimens.spacingLg),
                   Observer(
                     builder: (_) => AppButton(
-                      label:
-                          _authStore.isSubmitting ? 'Creating account...' : 'Sign up',
+                      label: _authStore.isSubmitting
+                          ? l10n.creatingAccountButtonLabel
+                          : l10n.signUpButtonLabel,
                       onPressed: _authStore.isSubmitting ? null : _submit,
                     ),
                   ),
                   const SizedBox(height: AppDimens.spacingMd),
                   TextButton(
                     onPressed: () => context.go('/login'),
-                    child: const Text('Already have an account? Log in'),
+                    child: Text(l10n.haveAccountPrompt),
                   ),
                 ],
               ),

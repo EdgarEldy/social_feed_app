@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/di/injection_container.dart';
 import '../../core/errors/failure.dart';
+import '../../core/l10n/app_localizations.dart';
 import '../../core/widgets/error_view.dart';
 import '../../core/widgets/loading_indicator.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
@@ -173,9 +174,15 @@ class _AppShell extends StatelessWidget {
             initialLocation: index == navigationShell.currentIndex,
           );
         },
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dynamic_feed), label: 'Feed'),
-          NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
+        destinations: [
+          NavigationDestination(
+            icon: const Icon(Icons.dynamic_feed),
+            label: AppLocalizations.of(context)!.feedTitle,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.person),
+            label: AppLocalizations.of(context)!.profileTitle,
+          ),
         ],
       ),
     );
@@ -251,8 +258,10 @@ class _EditPostRouteState extends State<_EditPostRoute> {
       return CreatePostPage(existingPost: initialPost);
     }
     if (_isLoading) {
-      return const Scaffold(
-        body: LoadingIndicator(semanticsLabel: 'Loading post'),
+      return Scaffold(
+        body: LoadingIndicator(
+          semanticsLabel: AppLocalizations.of(context)!.loadingPostLabel,
+        ),
       );
     }
     final error = _error;
@@ -263,7 +272,11 @@ class _EditPostRouteState extends State<_EditPostRoute> {
     }
     final post = _post;
     if (post == null || post.id != widget.id) {
-      return const Scaffold(body: ErrorView(message: 'Post not found.'));
+      return Scaffold(
+        body: ErrorView(
+          message: AppLocalizations.of(context)!.postNotFoundMessage,
+        ),
+      );
     }
     return CreatePostPage(existingPost: post);
   }

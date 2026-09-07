@@ -8,6 +8,7 @@ import 'package:social_feed_app/app/router/app_router.dart';
 import 'package:social_feed_app/app/router/auth_refresh_listenable.dart';
 import 'package:social_feed_app/core/di/injection_container.dart';
 import 'package:social_feed_app/core/errors/failure.dart';
+import 'package:social_feed_app/core/l10n/app_localizations.dart';
 import 'package:social_feed_app/core/network_info/connectivity_store.dart';
 import 'package:social_feed_app/core/pagination/paginated_result.dart';
 import 'package:social_feed_app/core/storage/secure_token_storage.dart';
@@ -111,7 +112,13 @@ void main() {
 
   group('LoginPage validation', () {
     testWidgets('shows a validation error under each field on an empty submit', (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const LoginPage(),
+        ),
+      );
 
       await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
       await tester.pump();
@@ -127,7 +134,13 @@ void main() {
     });
 
     testWidgets('shows an email format error for a non-empty but invalid email', (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const LoginPage(),
+        ),
+      );
 
       await tester.enterText(find.byType(TextFormField).at(0), 'not-an-email');
       await tester.enterText(find.byType(TextFormField).at(1), 'a-real-password');
@@ -153,7 +166,13 @@ void main() {
         ),
       ).thenAnswer((_) async => Right(user));
 
-      await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const LoginPage(),
+        ),
+      );
 
       await tester.enterText(find.byType(TextFormField).at(0), 'ada@example.com');
       await tester.enterText(find.byType(TextFormField).at(1), 'password123');
@@ -175,7 +194,13 @@ void main() {
         ),
       ).thenAnswer((_) async => const Left(ServerFailure('Invalid email or password.', statusCode: 401)));
 
-      await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const LoginPage(),
+        ),
+      );
 
       await tester.enterText(find.byType(TextFormField).at(0), 'ada@example.com');
       await tester.enterText(find.byType(TextFormField).at(1), 'wrong-password');
@@ -212,7 +237,13 @@ void main() {
       );
       addTearDown(router.dispose);
 
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpWidget(
+        MaterialApp.router(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          routerConfig: router,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(AppBar, 'Log in'), findsOneWidget);

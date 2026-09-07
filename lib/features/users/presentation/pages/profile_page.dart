@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme/app_dimens.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../auth/domain/entities/user.dart';
@@ -56,14 +57,15 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (_) {
         final isOwnProfile =
             getIt<AuthStore>().currentUser?.id == widget.userId;
+        final l10n = AppLocalizations.of(context)!;
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Profile'),
+            title: Text(l10n.profileTitle),
             actions: [
               if (isOwnProfile)
                 IconButton(
                   icon: const Icon(Icons.edit),
-                  tooltip: 'Edit profile',
+                  tooltip: l10n.editProfileTooltip,
                   onPressed: () => context.push('/profile/edit'),
                 ),
             ],
@@ -91,7 +93,9 @@ class _ProfileBody extends StatelessWidget {
     return Observer(
       builder: (_) {
         if (userStore.isLoading) {
-          return const LoadingIndicator(semanticsLabel: 'Loading profile');
+          return LoadingIndicator(
+            semanticsLabel: AppLocalizations.of(context)!.loadingProfileLabel,
+          );
         }
         final error = userStore.error;
         if (error != null) {
@@ -144,7 +148,8 @@ class _ProfileHeader extends StatelessWidget {
         children: [
           Semantics(
             image: true,
-            label: 'Profile photo of ${user.displayName}',
+            label: AppLocalizations.of(context)!
+                .profilePhotoSemanticLabel(user.displayName),
             child: CircleAvatar(
               radius: AppDimens.spacingXxl,
               backgroundImage: photoUrl == null
@@ -199,13 +204,10 @@ class OwnProfilePage extends StatelessWidget {
       builder: (_) {
         final currentUser = authStore.currentUser;
         if (currentUser == null) {
+          final l10n = AppLocalizations.of(context)!;
           return Scaffold(
-            appBar: AppBar(title: const Text('Profile')),
-            body: const ErrorView(
-              message:
-                  'Your profile has not loaded yet. Sign out and back in '
-                  'to refresh it.',
-            ),
+            appBar: AppBar(title: Text(l10n.profileTitle)),
+            body: ErrorView(message: l10n.profileNotLoadedMessage),
           );
         }
         return ProfilePage(userId: currentUser.id);

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:social_feed_app/core/l10n/app_localizations.dart';
 import 'package:social_feed_app/features/comments/presentation/widgets/comment_input.dart';
 
 void main() {
   Widget buildSubject(Future<bool> Function(String content) onSubmit) {
     return MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: CommentInput(onSubmit: onSubmit),
       ),
